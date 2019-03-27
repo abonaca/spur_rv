@@ -711,6 +711,14 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
     else:
         return -np.inf
 
+def sort_on_runtime(p):
+    """Improve runtime by starting longest jobs first (sorts on first parameter -- in our case, the encounter time)"""
+    
+    p = np.atleast_2d(p)
+    idx = np.argsort(p[:, 0])[::-1]
+    
+    return p[idx], idx
+
 def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=1, test=False):
     """"""
     
@@ -881,13 +889,71 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     
     sampler.pool.terminate()
 
-def sort_on_runtime(p):
-    """Improve runtime by starting longest jobs first (sorts on first parameter -- in our case, the encounter time)"""
+
+# chain diagnostics
+
+def plot_corner(label='', full=False):
+    """"""
+    sampler = np.load('../data/samples{}.npz'.format(label))
+    chain = sampler['chain']
+    Npar = np.shape(chain)[1]
+    print(np.sum(np.isfinite(sampler['lnp'])), np.size(sampler['lnp']))
     
-    p = np.atleast_2d(p)
-    idx = np.argsort(p[:, 0])[::-1]
+    params = ['T', 'bx', 'by', 'vx', 'vy', 'logM', 'rs', 'Tgap']
+    if full==False:
+        params = ['T [Gyr]', 'B [pc]', 'V [km s$^{-1}$]', 'log M/M$_\odot$']
+        abr = chain[:,:-3]
+        abr[:,1] = np.sqrt(chain[:,1]**2 + chain[:,2]**2)
+        abr[:,2] = np.sqrt(chain[:,3]**2 + chain[:,4]**2)
+        abr[:,0] = chain[:,0]
+        abr[:,3] = chain[:,5]
+        if Npar>7:
+            abr[:,3] = chain[:,6]
+            abr[:,4] = chain[:,5]
+            params = ['T [Gyr]', 'B [pc]', 'V [km s$^{-1}$]', '$r_s$ [pc]', 'log M/M$_\odot$']
+            #lims = [[0.,2], [0.1,100], [10,1000], [0.001,1000], [5,9]]
+        chain = abr
     
-    return p[idx], idx
+    plt.close()
+    corner.corner(chain, bins=50, labels=params, plot_datapoints=True)
+    
+    plt.savefig('../plots/corner{}{:d}.png'.format(label, full))
+
+def plot_chains(label=''):
+    """"""
+    sampler = np.load('../data/samples{}.npz'.format(label))
+    chain = sampler['chain']
+    lnp = sampler['lnp']
+    nwalkers = sampler['nwalkers']
+    ntot, Npar = np.shape(chain)
+    nstep = int(ntot/nwalkers)
+    steps = np.arange(nstep)
+    
+    Npanel = Npar + 1
+    nrow = np.int(np.ceil(np.sqrt(Npanel)))
+    ncol = np.int(np.ceil(Npanel/nrow))
+    da = 2.5
+    params = ['T [Gyr]', '$B_x$ [pc]', '$B_y$ [pc]', '$V_x$ [km s$^{-1}$]', '$V_y$ [km s$^{-1}$]', 'log M/M$_\odot$', '$r_s$ [pc]', '$T_{gap}$ [Myr]']
+    
+    plt.close()
+    fig, ax = plt.subplots(nrow, ncol, figsize=(1.5*ncol*da, nrow*da), sharex=True)
+    
+    for i in range(Npar):
+        plt.sca(ax[int(i/nrow)][i%nrow])
+        plt.plot(steps, chain[:,i].reshape(nstep,-1), '-')
+        plt.ylabel(params[i])
+    
+    plt.sca(ax[nrow-1][ncol-1])
+    plt.plot(steps, lnp.reshape(nstep,-1), '-')
+    plt.ylabel('ln P')
+    
+    for i in range(ncol):
+        plt.sca(ax[nrow-1][i])
+        plt.xlabel('Step')
+        
+    plt.tight_layout()
+    plt.savefig('../plots/chain{}.png'.format(label))
+
 
 
 
