@@ -40,7 +40,7 @@ gc_frame_dict = {'galcen_distance':8*u.kpc, 'z_sun':0*u.pc}
 gc_frame = coord.Galactocentric(**gc_frame_dict)
 ham = gp.Hamiltonian(gp.LogarithmicPotential(v_c=225*u.km/u.s, r_h=0*u.kpc, q1=1, q2=1, q3=1, units=galactic))
 ham_log = gp.Hamiltonian(gp.LogarithmicPotential(v_c=225*u.km/u.s, r_h=0*u.kpc, q1=1, q2=1, q3=1, units=galactic))
-ham_mw = gp.Hamiltonian(gp.load('/home/ana/projects/gd1_spur/data/mwpot.yml'))
+ham_mw = gp.Hamiltonian(gp.load('../../gd1_spur/data/mwpot.yml'))
 
 def check_vr():
     pkl = pickle.load(open('/home/ana/projects/gd1_spur/data/fiducial_perturb_python3.pkl', 'rb'))
