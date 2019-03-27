@@ -23,7 +23,7 @@ from gala.dynamics import mockstream
 #import scipy.spatial
 import scipy.interpolate
 import emcee
-#import corner
+import corner
 
 #from colossus.cosmology import cosmology
 #from colossus.halo import concentration
