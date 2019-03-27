@@ -881,6 +881,13 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     
     sampler.pool.terminate()
 
+def sort_on_runtime(p):
+    """Improve runtime by starting longest jobs first (sorts on first parameter -- in our case, the encounter time)"""
+    
+    p = np.atleast_2d(p)
+    idx = np.argsort(p[:, 0])[::-1]
+    
+    return p[idx], idx
 
 
 
