@@ -1,3 +1,15 @@
+# data files
+*.pkl
+*.fits
+*.dat
+*.tab
+*.npz
+*.bin
+*.h5
+
+# scripts
+*.sh
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
