@@ -946,6 +946,9 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     # tighten likelihood
     #delta_phi2 = 0.1
     #phi2_err = 0.03
+    percentile1 = 2
+    percentile2 = 94
+    delta_phi1 = 0.5*u.deg
     sigma_vr = np.array([0.2, 0.2])*u.km/u.s
     
     potential = 3
