@@ -721,6 +721,7 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
     ytop_model = tophat(bc, model_base, model_hat,  gap_position, gap_width)
     chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
     
+    #print(chi_gap, chi_spur, chi_vr)
     if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
         return -(chi_gap + chi_spur + chi_vr)
     else:
@@ -941,6 +942,11 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     delta_phi1 = 1.5*u.deg
     mu_vr = pkl['mu_vr']
     sigma_vr = pkl['sigma_vr']
+
+    # tighten likelihood
+    delta_phi2 = 0.1
+    phi2_err = 0.03
+    sigma_vr = np.array([0.2, 0.2])*u.km/u.s
     #phi1_list = np.array([-33.7, -30])*u.deg
     #delta_phi1 = 1.5*u.deg
     #mu_vr = np.array([0,0])*u.km/u.s
@@ -959,14 +965,6 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     chispur_max = 1.2
     
     # parameters to sample
-    t_impact = 0.5*u.Gyr
-    bx = 40*u.pc
-    by = 1*u.pc
-    vx = 225*u.km/u.s
-    vy = 1*u.km/u.s
-    M = 7e6*u.Msun
-    rs = 0.5*u.pc
-    
     t_impact = 0.49*u.Gyr
     M = 2.2e7*u.Msun
     rs = 0.55*u.pc
@@ -974,6 +972,15 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     by=15*u.pc
     vx=330*u.km/u.s
     vy=-370*u.km/u.s
+    
+    t_impact = 0.48*u.Gyr
+    M = 7.7e6*u.Msun
+    rs = 0.32*u.pc
+    bx=17*u.pc
+    by=0.4*u.pc
+    vx=480*u.km/u.s
+    vy=-110*u.km/u.s
+
 
     if potential_perturb==1:
         params_list = [t_impact, bx, by, vx, vy, M, Tgap]
