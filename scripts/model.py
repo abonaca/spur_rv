@@ -440,8 +440,10 @@ def loop_stars(N=1000, t_impact=0.5*u.Gyr, bnorm=0.06*u.kpc, bx=0.06*u.kpc, vnor
     ########################
     # Perturber at encounter
     
-    pkl = pickle.load(open('../data/gap_present_log_python3.pkl', 'rb'))
-    c = coord.Galactocentric(x=pkl['x_gap'][0], y=pkl['x_gap'][1], z=pkl['x_gap'][2], v_x=pkl['v_gap'][0], v_y=pkl['v_gap'][1], v_z=pkl['v_gap'][2], **gc_frame_dict)
+    pkl = Table.read('../data/gap_present.fits')
+    xunit = pkl['x_gap'].unit
+    vunit = pkl['v_gap'].unit
+    c = coord.Galactocentric(x=pkl['x_gap'][0]*xunit, y=pkl['x_gap'][1]*xunit, z=pkl['x_gap'][2]*xunit, v_x=pkl['v_gap'][0]*vunit, v_y=pkl['v_gap'][1]*vunit, v_z=pkl['v_gap'][2]*vunit, **gc_frame_dict)
     w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
     
     # best-fitting orbit
@@ -540,6 +542,15 @@ def loop_stars(N=1000, t_impact=0.5*u.Gyr, bnorm=0.06*u.kpc, bx=0.06*u.kpc, vnor
     par_pot = np.array([Vh.to(u.m/u.s).value, q.value, rhalo.si.value])
     #par_pot = np.array([Vh.si.value, q.value, rhalo.si.value])
     
+    # generate unperturbed model
+    # calculate model
+    potential_perturb = 1
+    par_perturb = np.array([0*M.si.value, 0., 0., 0.])
+    
+    x1, x2, x3, v1, v2, v3 = interact.general_interact(par_perturb, xsub.si.value, vsub.to(u.m/u.s).value, Tenc.to(u.s).value, t_impact.to(u.s).value, dt.to(u.s).value, par_pot, potential, potential_perturb, xs[0].si.value, xs[1].si.value, xs[2].si.value, vs[0].to(u.m/u.s).value, vs[1].to(u.m/u.s).value, vs[2].to(u.m/u.s).value)
+    c0 = coord.Galactocentric(x=x1*u.m, y=x2*u.m, z=x3*u.m, v_x=v1*u.m/u.s, v_y=v2*u.m/u.s, v_z=v3*u.m/u.s, **gc_frame_dict)
+    cg0 = c0.transform_to(gc.GD1)
+    
     # generate stream model
     potential_perturb = 1
     par_perturb = np.array([M.si.value, 0., 0., 0.])
@@ -597,16 +608,20 @@ def loop_stars(N=1000, t_impact=0.5*u.Gyr, bnorm=0.06*u.kpc, bx=0.06*u.kpc, vnor
     dVr = cg.radial_velocity - polyvr(cg.phi1.wrap_at(180*u.deg))*u.km/u.s
     
     phi1_list = np.array([-33.7, -30])*u.deg
-    sigma_phi1 = 1*u.deg
+    delta_phi1 = 1*u.deg
     mu_vr = np.array([0,0])*u.km/u.s
     sigma_vr = np.array([1,1])*u.km/u.s
     
     chi_vr = 0
     for e, phi in enumerate(phi1_list):
-        ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi) < sigma_phi1
-        print(np.median(cg.radial_velocity[ind_phi & loop_mask]), np.median(cg.radial_velocity[ind_phi & ~loop_mask]))
-        chi_vr += 0.5*(np.median(cg.radial_velocity[ind_phi & loop_mask]) - np.median(cg.radial_velocity[ind_phi & ~loop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
+        ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi) < delta_phi1
+        ind_phi0 = np.abs(cg0.phi1.wrap_at(180*u.deg) - phi) < delta_phi1
+        print(np.median(cg.radial_velocity[ind_phi & loop_mask]), np.median(cg0.radial_velocity[ind_phi0]))
+        mu_vr[e] = np.median(cg0.radial_velocity[ind_phi0])
+        chi_vr += (np.median(cg.radial_velocity[ind_phi & loop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
     
+    outdict = {'delta_phi1': delta_phi1, 'phi1_list': phi1_list, 'mu_vr': mu_vr, 'sigma_vr': sigma_vr}
+    pickle.dump(outdict, open('../data/vr_unperturbed.pkl', 'wb'))
     print(chi_vr)
     
     plt.close()
@@ -691,7 +706,7 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
     for e, phi in enumerate(phi1_list):
         ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi) < delta_phi1
         #print(np.median(cg.radial_velocity[ind_phi & loop_mask]), np.median(cg.radial_velocity[ind_phi & ~loop_mask]))
-        chi_vr += 0.5*(np.median(cg.radial_velocity[ind_phi & loop_mask]) - np.median(cg.radial_velocity[ind_phi & ~loop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
+        chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
     
     # gap chi^2
     phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
@@ -710,6 +725,144 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
         return -(chi_gap + chi_spur + chi_vr)
     else:
         return -np.inf
+
+def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb, poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, phi1_list, delta_phi1, mu_vr, sigma_vr, chigap_max, chispur_max, colored=True, plot_comp=True, chi_label=True):
+    """Calculate pseudo-likelihood of a stream==orbit model, evaluating against the gap location & width, spur location & extent, and radial velocity offsets"""
+    
+    if (x[0]<0) | (x[0]>14) | (np.sqrt(x[3]**2 + x[4]**2)>500):
+        return -np.inf
+    
+    x[5] = 10**x[5]
+    params = [x_*u_ for x_, u_ in zip(x, params_units)]
+    if potential_perturb==1:
+        t_impact, bx, by, vx, vy, M, Tgap = params
+        par_perturb = np.array([M.si.value, 0., 0., 0.])
+    else:
+        t_impact, bx, by, vx, vy, M, rs, Tgap = params
+        par_perturb = np.array([M.si.value, rs.si.value, 0., 0., 0.])
+        if x[6]<0:
+            return -np.inf
+    
+    if (Tgap<0*u.Myr) | (Tgap>Tstream):
+        return -np.inf
+    
+    # calculate model
+    x1, x2, x3, v1, v2, v3, dE = interact.abinit_interaction(xend, vend, dt_coarse.si.value, dt_fine.si.value, t_impact.si.value, Tenc.si.value, Tstream.si.value, Tgap.si.value, Nstream, par_pot, potential, par_perturb, potential_perturb, bx.si.value, by.si.value, vx.si.value, vy.si.value)
+    
+    c = coord.Galactocentric(x=x1*u.m, y=x2*u.m, z=x3*u.m, v_x=v1*u.m/u.s, v_y=v2*u.m/u.s, v_z=v3*u.m/u.s, **gc_frame_dict)
+    cg = c.transform_to(gc.GD1)
+    
+    # spur chi^2
+    top1 = np.percentile(dE[:N2], percentile1)
+    top2 = np.percentile(dE[N2:], percentile2)
+    ind_loop1 = np.where(dE[:N2]<top1)[0][0]
+    ind_loop2 = np.where(dE[N2:]>top2)[0][-1]
+    
+    f = scipy.interpolate.interp1d(spx, spy, kind='quadratic')
+    
+    aloop_mask = np.zeros(Nstream, dtype=bool)
+    aloop_mask[ind_loop1:ind_loop2+N2] = True
+    phi1_mask = (cg.phi1.wrap_at(wangle)>phi1_min) & (cg.phi1.wrap_at(wangle)<phi1_max)
+    loop_mask = aloop_mask & phi1_mask
+    Nloop = np.sum(loop_mask)
+    
+    loop_quadrant = (cg.phi1.wrap_at(wangle)[loop_mask]>quad_phi1) & (cg.phi2[loop_mask]>quad_phi2)
+    if np.sum(loop_quadrant)<Nquad:
+        return -np.inf
+    
+    chi_spur = np.sum((cg.phi2[loop_mask].value - f(cg.phi1.wrap_at(wangle).value[loop_mask]))**2/phi2_err**2)/Nloop
+    
+    # vr chi^2
+    chi_vr = 0
+    for e, phi in enumerate(phi1_list):
+        ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi) < delta_phi1
+        #print(np.median(cg.radial_velocity[ind_phi & loop_mask]), np.median(cg.radial_velocity[ind_phi & ~loop_mask]))
+        chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
+    
+    print(chi_vr)
+    # gap chi^2
+    phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
+    h_model, be = np.histogram(cg.phi1[phi2_mask].wrap_at(wangle).value, bins=bins)
+    yerr = np.sqrt(h_model+1)
+    
+    model_base = np.median(h_model[base_mask])
+    model_hat = np.median(h_model[hat_mask])
+    if (model_base<Nside_min) | (model_hat>model_base*f_gap):
+        return -np.inf
+    
+    ytop_model = tophat(bc, model_base, model_hat,  gap_position, gap_width)
+    chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
+    
+    plt.close()
+    fig, ax = plt.subplots(3,2,figsize=(13,9))
+    
+    plt.sca(ax[0][0])
+    plt.plot(bc, h_model, 'o')
+    if plot_comp:
+        plt.plot(bc, ytop_model, 'k-')
+
+    if chi_label:
+        plt.text(0.95, 0.15, '$\chi^2_{{gap}}$ = {:.2f}'.format(chi_gap), ha='right', transform=plt.gca().transAxes, fontsize='small')
+    plt.ylabel('N')
+    plt.xlim(-60,-20)
+    
+    plt.sca(ax[1][0])
+    plt.plot(cg.phi1.wrap_at(wangle).value, dE, 'o')
+    if colored:
+        plt.plot(cg.phi1.wrap_at(wangle).value[aloop_mask], dE[aloop_mask], 'o')
+    plt.ylabel('$\Delta$ E')
+    
+    plt.sca(ax[2][0])
+    plt.plot(cg.phi1.wrap_at(wangle).value, cg.phi2.value, 'o')
+    if colored:
+        plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], cg.phi2.value[loop_mask], 'o')
+    if plot_comp:
+        isort = np.argsort(cg.phi1.wrap_at(wangle).value[loop_mask])
+        plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask][isort], f(cg.phi1.wrap_at(wangle).value[loop_mask])[isort], 'k-')
+    
+    if chi_label:
+        plt.text(0.95, 0.15, '$\chi^2_{{spur}}$ = {:.2f}'.format(chi_spur), ha='right', transform=plt.gca().transAxes, fontsize='small')
+    plt.xlabel('$\phi_1$ [deg]')
+    plt.ylabel('$\phi_2$ [deg]')
+    plt.xlim(-60,-20)
+    plt.ylim(-5,5)
+    
+    plt.sca(ax[0][1])
+    plt.plot(c.x.to(u.kpc), c.y.to(u.kpc), 'o')
+    if colored:
+        plt.plot(c.x.to(u.kpc)[loop_mask], c.y.to(u.kpc)[loop_mask], 'o') #, color='orange')
+    
+    plt.xlabel('x [kpc]')
+    plt.ylabel('y [kpc]')
+    
+    plt.sca(ax[1][1])
+    cr = np.sqrt(c.x**2 + c.y**2)
+    plt.plot(cr.to(u.kpc), c.z.to(u.kpc), 'o')
+    if colored:
+        plt.plot(cr.to(u.kpc)[loop_mask], c.z.to(u.kpc)[loop_mask], 'o') #, color='orange')
+    
+    plt.xlabel('R [kpc]')
+    plt.ylabel('z [kpc]')
+    
+    plt.sca(ax[2][1])
+    isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
+    vr0 = np.interp(cg.phi1.wrap_at(wangle).value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
+    dvr = vr0 - cg.radial_velocity.to(u.km/u.s)
+    plt.plot(cg.phi1.wrap_at(wangle).value, dvr, 'o')
+    if colored:
+        plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], dvr[loop_mask], 'o')
+    
+    if chi_label:
+        print(chi_vr)
+        plt.text(0.95, 0.15, '$\chi^2_{{V_r}}$ = {:.2f}'.format(chi_vr), ha='right', transform=plt.gca().transAxes, fontsize='small')
+    plt.xlabel('$\phi_1$ [deg]')
+    plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
+    plt.ylim(-5,5)
+    plt.xlim(-60,-20)
+    
+    plt.tight_layout()
+    
+    return fig, ax, chi_gap, chi_spur, chi_vr, np.sum(loop_quadrant), -(chi_gap + chi_spur + chi_vr)
 
 def sort_on_runtime(p):
     """Improve runtime by starting longest jobs first (sorts on first parameter -- in our case, the encounter time)"""
@@ -784,10 +937,16 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     Nquad = 1
     
     # vr comparison
-    phi1_list = np.array([-33.7, -30])*u.deg
+    pkl = pickle.load(open('../data/vr_unperturbed.pkl', 'rb'))
+    phi1_list = pkl['phi1_list']
+    delta_phi1 = pkl['delta_phi1']
     delta_phi1 = 1.5*u.deg
-    mu_vr = np.array([0,0])*u.km/u.s
-    sigma_vr = np.array([1,1])*u.km/u.s
+    mu_vr = pkl['mu_vr']
+    sigma_vr = pkl['sigma_vr']
+    #phi1_list = np.array([-33.7, -30])*u.deg
+    #delta_phi1 = 1.5*u.deg
+    #mu_vr = np.array([0,0])*u.km/u.s
+    #sigma_vr = np.array([1,1])*u.km/u.s
     
     potential = 3
     Vh = 225*u.km/u.s
@@ -810,13 +969,13 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     M = 7e6*u.Msun
     rs = 0.5*u.pc
     
-    t_impact = 0.5*u.Gyr
-    M = 1e7*u.Msun
-    rs = 0.5*u.pc
-    bx=60*u.pc
-    by=1*u.pc
-    vx=200*u.km/u.s
-    vy=1*u.km/u.s
+    t_impact = 0.49*u.Gyr
+    M = 2.2e7*u.Msun
+    rs = 0.55*u.pc
+    bx=21*u.pc
+    by=15*u.pc
+    vx=330*u.km/u.s
+    vy=-370*u.km/u.s
 
     if potential_perturb==1:
         params_list = [t_impact, bx, by, vx, vy, M, Tgap]
@@ -954,6 +1113,152 @@ def plot_chains(label=''):
     plt.tight_layout()
     plt.savefig('../plots/chain{}.png'.format(label))
 
+def get_unique(label=''):
+    """Save unique models in a separate file"""
+    
+    sampler = np.load('../data/samples{}.npz'.format(label))
+    models, ind = np.unique(sampler['chain'], axis=0, return_index=True)
+    ifinite = np.isfinite(sampler['lnp'][ind])
+    
+    np.savez('../data/unique_samples{}'.format(label), chain=models[ifinite], lnp=sampler['lnp'][ind][ifinite])
+
+def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True):
+    """"""
+    chain = np.load('../data/unique_samples{}.npz'.format(label))['chain']
+    vnorm = np.sqrt(chain[:,3]**2 + chain[:,4]**2)
+    if fast:
+        ind = vnorm>490
+    else:
+        ind = vnorm<350
+    chain = chain[ind]
+    Nsample = np.shape(chain)[0]
+    #print(Nsample)
+    if rand:
+        np.random.seed(59)
+        ind = np.random.randint(Nsample, size=Nc)
+    else:
+        ind = np.load('../data/hull_points{}.npy'.format(label))
+    Nc = np.size(ind)
+    
+    for k in range(Nc):
+        x = chain[ind[k]]
+        
+        pkl = Table.read('../data/gap_present.fits')
+        xunit = pkl['x_gap'].unit
+        vunit = pkl['v_gap'].unit
+        c = coord.Galactocentric(x=pkl['x_gap'][0]*xunit, y=pkl['x_gap'][1]*xunit, z=pkl['x_gap'][2]*xunit, v_x=pkl['v_gap'][0]*vunit, v_y=pkl['v_gap'][1]*vunit, v_z=pkl['v_gap'][2]*vunit, **gc_frame_dict)
+        w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+        xgap = np.array([w0.pos.x.si.value, w0.pos.y.si.value, w0.pos.z.si.value])
+        vgap = np.array([w0.vel.d_x.si.value, w0.vel.d_y.si.value, w0.vel.d_z.si.value])
+        
+        # load orbital end point
+        pos = np.load('../data/log_orbit.npy')
+        phi1, phi2, d, pm1, pm2, vr = pos
+
+        c_end = gc.GD1(phi1=phi1*u.deg, phi2=phi2*u.deg, distance=d*u.kpc, pm_phi1_cosphi2=pm1*u.mas/u.yr, pm_phi2=pm2*u.mas/u.yr, radial_velocity=vr*u.km/u.s)
+        w0_end = gd.PhaseSpacePosition(c_end.transform_to(gc_frame).cartesian)
+        xend = np.array([w0_end.pos.x.si.value, w0_end.pos.y.si.value, w0_end.pos.z.si.value])
+        vend = np.array([w0_end.vel.d_x.si.value, w0_end.vel.d_y.si.value, w0_end.vel.d_z.si.value])
+        
+        dt_coarse = 0.5*u.Myr
+        Tstream = 56*u.Myr
+        Tgap = 29.176*u.Myr
+        Nstream = 2000
+        N2 = int(Nstream*0.5)
+        dt_stream = Tstream/Nstream
+        dt_fine = 0.05*u.Myr
+        wangle = 180*u.deg
+        Tenc = 0.01*u.Gyr
+        
+        # gap comparison
+        bins = np.linspace(-60,-20,30)
+        bc = 0.5 * (bins[1:] + bins[:-1])
+        Nb = np.size(bc)
+        Nside_min = 5
+        f_gap = 0.5
+        delta_phi2 = 0.5
+        
+        gap = np.load('../data/gap_properties.npz')
+        phi1_edges = gap['phi1_edges']
+        gap_position = gap['position']
+        gap_width = gap['width']
+        gap_yerr = gap['yerr']
+        base_mask = ((bc>phi1_edges[0]) & (bc<phi1_edges[1])) | ((bc>phi1_edges[2]) & (bc<phi1_edges[3]))
+        hat_mask = (bc>phi1_edges[4]) & (bc<phi1_edges[5])
+        
+        p = np.load('../data/polytrack.npy')
+        poly = np.poly1d(p)
+        x_ = np.linspace(-100,0,100)
+        y_ = poly(x_)
+        
+        # spur comparison
+        sp = np.load('../data/spur_track.npz')
+        spx = sp['x']
+        spy = sp['y']
+        phi2_err = 0.2
+        phi1_min = -50*u.deg
+        phi1_max = -30*u.deg
+        percentile1 = 3
+        percentile2 = 92
+        quad_phi1 = -32*u.deg
+        quad_phi2 = 0.8*u.deg
+        Nquad = 1
+        
+        # vr comparison
+        pkl = pickle.load(open('../data/vr_unperturbed.pkl', 'rb'))
+        phi1_list = pkl['phi1_list']
+        delta_phi1 = pkl['delta_phi1']
+        mu_vr = pkl['mu_vr']
+        sigma_vr = pkl['sigma_vr']
+        #phi1_list = np.array([-33.7, -30])*u.deg
+        #delta_phi1 = 1*u.deg
+        #mu_vr = np.array([0,0])*u.km/u.s
+        #sigma_vr = np.array([1,1])*u.km/u.s
+        
+        potential = 3
+        Vh = 225*u.km/u.s
+        q = 1*u.Unit(1)
+        rhalo = 0*u.pc
+        par_pot = np.array([Vh.si.value, q.value, rhalo.si.value])
+        
+        chigap_max = 0.6567184385873621
+        chispur_max = 1.0213837095314207
+        
+        chigap_max = 0.8
+        chispur_max = 1.2
+        
+        # parameters to sample
+        potential_perturb = 2
+        t_impact = 0.5*u.Gyr
+        M = 1e7*u.Msun
+        rs = 0.5*u.pc
+        bx=60*u.pc
+        by=1*u.pc
+        vx=200*u.km/u.s
+        vy=1*u.km/u.s
+
+        if potential_perturb==1:
+            params_list = [t_impact, bx, by, vx, vy, M, Tgap]
+        elif potential_perturb==2:
+            params_list = [t_impact, bx, by, vx, vy, M, rs, Tgap]
+        params_units = [p_.unit for p_ in params_list]
+        params = [p_.value for p_ in params_list]
+        params[5] = np.log10(params[5])
+        
+        model_args = [params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb]
+        gap_args = [poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width]
+        spur_args = [N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad]
+        vr_args = [phi1_list, delta_phi1, mu_vr, sigma_vr]
+        lnp_args = [chigap_max, chispur_max]
+        lnprob_args = model_args + gap_args + spur_args + vr_args + lnp_args
+        
+        fig, ax, chi_gap, chi_spur, chi_vr, N, lnp = lnprob_verbose(x, *lnprob_args)
+        print(lnp)
+        
+        plt.suptitle('  '.join(['{:.2g} {}'.format(x_, u_) for x_, u_ in zip(x,params_units)]), fontsize='medium')
+        plt.tight_layout(rect=[0,0,1,0.96])
+        
+        plt.savefig('../plots/model_diag/likelihood_f{:d}_r{:d}_{}.png'.format(fast, rand, k))
 
 
 
