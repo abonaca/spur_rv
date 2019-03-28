@@ -944,13 +944,9 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     sigma_vr = pkl['sigma_vr']
 
     # tighten likelihood
-    delta_phi2 = 0.1
-    phi2_err = 0.03
+    #delta_phi2 = 0.1
+    #phi2_err = 0.03
     sigma_vr = np.array([0.2, 0.2])*u.km/u.s
-    #phi1_list = np.array([-33.7, -30])*u.deg
-    #delta_phi1 = 1.5*u.deg
-    #mu_vr = np.array([0,0])*u.km/u.s
-    #sigma_vr = np.array([1,1])*u.km/u.s
     
     potential = 3
     Vh = 225*u.km/u.s
@@ -980,6 +976,14 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     by=0.4*u.pc
     vx=480*u.km/u.s
     vy=-110*u.km/u.s
+    
+    t_impact = 0.48*u.Gyr
+    M = 6.7e6*u.Msun
+    rs = 0.66*u.pc
+    bx = 22*u.pc
+    by = -3.3*u.pc
+    vx = 240*u.km/u.s
+    vy = 17*u.km/u.s
 
 
     if potential_perturb==1:
@@ -1138,12 +1142,11 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True, old=False
     else:
         ind = vnorm<350
     if old:
-        ind = chain[:,0]>0.9
+        ind2 = chain[:,0]>0.9
     else:
-        ind = chain[:,0]>0
-    chain = chain[ind]
+        ind2 = chain[:,0]>0
+    chain = chain[ind & ind2]
     Nsample = np.shape(chain)[0]
-    print(Nsample)
     if rand:
         np.random.seed(59)
         ind = np.random.randint(Nsample, size=Nc)
@@ -1153,7 +1156,7 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True, old=False
     
     for k in range(Nc):
         x = chain[ind[k]]
-        #print(x)
+        #print(k, x)
         pkl = Table.read('../data/gap_present.fits')
         xunit = pkl['x_gap'].unit
         vunit = pkl['v_gap'].unit
