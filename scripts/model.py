@@ -1122,7 +1122,7 @@ def get_unique(label=''):
     
     np.savez('../data/unique_samples{}'.format(label), chain=models[ifinite], lnp=sampler['lnp'][ind][ifinite])
 
-def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True):
+def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True, old=False):
     """"""
     chain = np.load('../data/unique_samples{}.npz'.format(label))['chain']
     vnorm = np.sqrt(chain[:,3]**2 + chain[:,4]**2)
@@ -1130,9 +1130,13 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True):
         ind = vnorm>490
     else:
         ind = vnorm<350
+    if old:
+        ind = chain[:,0]>0.9
+    else:
+        ind = chain[:,0]>0
     chain = chain[ind]
     Nsample = np.shape(chain)[0]
-    #print(Nsample)
+    print(Nsample)
     if rand:
         np.random.seed(59)
         ind = np.random.randint(Nsample, size=Nc)
@@ -1140,7 +1144,7 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True):
         ind = np.load('../data/hull_points{}.npy'.format(label))
     Nc = np.size(ind)
     
-    for k in range(66,Nc):
+    for k in range(Nc):
         x = chain[ind[k]]
         #print(x)
         pkl = Table.read('../data/gap_present.fits')
@@ -1259,7 +1263,7 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True):
         plt.suptitle('  '.join(['{:.2g} {}'.format(x_, u_) for x_, u_ in zip(x,params_units)]), fontsize='medium')
         plt.tight_layout(rect=[0,0,1,0.96])
         
-        plt.savefig('../plots/model_diag/likelihood_f{:d}_r{:d}_{}.png'.format(fast, rand, k))
+        plt.savefig('../plots/model_diag/likelihood_f{:d}_o{:d}_r{:d}_{}.png'.format(fast, old, rand, k))
 
 
 
