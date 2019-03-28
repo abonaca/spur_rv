@@ -779,7 +779,6 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         #print(np.median(cg.radial_velocity[ind_phi & loop_mask]), np.median(cg.radial_velocity[ind_phi & ~loop_mask]))
         chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
     
-    print(chi_vr)
     # gap chi^2
     phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
     h_model, be = np.histogram(cg.phi1[phi2_mask].wrap_at(wangle).value, bins=bins)
@@ -853,7 +852,6 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], dvr[loop_mask], 'o')
     
     if chi_label:
-        print(chi_vr)
         plt.text(0.95, 0.15, '$\chi^2_{{V_r}}$ = {:.2f}'.format(chi_vr), ha='right', transform=plt.gca().transAxes, fontsize='small')
     plt.xlabel('$\phi_1$ [deg]')
     plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
@@ -1088,6 +1086,8 @@ def plot_chains(label=''):
     nstep = int(ntot/nwalkers)
     steps = np.arange(nstep)
     
+    print(np.sum(np.isfinite(lnp)), np.size(lnp))
+    
     Npanel = Npar + 1
     nrow = np.int(np.ceil(np.sqrt(Npanel)))
     ncol = np.int(np.ceil(Npanel/nrow))
@@ -1140,9 +1140,9 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True):
         ind = np.load('../data/hull_points{}.npy'.format(label))
     Nc = np.size(ind)
     
-    for k in range(Nc):
+    for k in range(66,Nc):
         x = chain[ind[k]]
-        
+        #print(x)
         pkl = Table.read('../data/gap_present.fits')
         xunit = pkl['x_gap'].unit
         vunit = pkl['v_gap'].unit
@@ -1208,6 +1208,7 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True):
         pkl = pickle.load(open('../data/vr_unperturbed.pkl', 'rb'))
         phi1_list = pkl['phi1_list']
         delta_phi1 = pkl['delta_phi1']
+        delta_phi1 = 1.5*u.deg
         mu_vr = pkl['mu_vr']
         sigma_vr = pkl['sigma_vr']
         #phi1_list = np.array([-33.7, -30])*u.deg
