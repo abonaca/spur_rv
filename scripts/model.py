@@ -789,7 +789,7 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
     ytop_model = tophat(bc, model_base, model_hat,  gap_position, gap_width)
     chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
     
-    print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
+    #print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
     if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
         return -(chi_gap + chi_spur + chi_vr)
     else:
