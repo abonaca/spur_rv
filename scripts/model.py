@@ -881,7 +881,7 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
     
     plt.close()
-    fig, ax = plt.subplots(3,2,figsize=(13,9))
+    fig, ax = plt.subplots(3,2,figsize=(16,9))
     
     plt.sca(ax[0][0])
     plt.plot(bc, h_model, 'o')
@@ -899,10 +899,12 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         plt.plot(cg.phi1.wrap_at(wangle).value[aloop_mask], dE[aloop_mask], 'o')
     plt.ylabel('$\Delta$ E')
     
+    colors = [mpl.cm.Blues(0.6), mpl.cm.Blues(0.85)]
+
     plt.sca(ax[2][0])
-    plt.plot(cg.phi1.wrap_at(wangle).value, cg.phi2.value, 'o')
+    plt.plot(cg.phi1.wrap_at(wangle).value, cg.phi2.value, 'o', color=colors[0])
     if colored:
-        plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], cg.phi2.value[loop_mask], 'o')
+        plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], cg.phi2.value[loop_mask], 'o', color=colors[1])
     if plot_comp:
         isort = np.argsort(cg.phi1.wrap_at(wangle).value[loop_mask])
         plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask][isort], f(cg.phi1.wrap_at(wangle).value[loop_mask])[isort], 'k-')
@@ -936,15 +938,15 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     vr0 = np.interp(cg.phi1.wrap_at(wangle).value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
     dvr = vr0 - cg.radial_velocity.to(u.km/u.s)
     #dvr = cg.radial_velocity.to(u.km/u.s)
-    plt.plot(cg.phi1.wrap_at(wangle).value, dvr, 'o')
+    plt.plot(cg.phi1.wrap_at(wangle).value, dvr, 'o', color=colors[0])
     if colored:
-        plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], dvr[loop_mask], 'o')
-        plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & aloop_mask], dvr[ind_phi & aloop_mask], 'ro')
-        plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & ~aloop_mask], dvr[ind_phi & ~aloop_mask], 'ko')
+        plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], dvr[loop_mask], 'o', color=colors[1])
+        #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & aloop_mask], dvr[ind_phi & aloop_mask], 'ro')
+        #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & ~aloop_mask], dvr[ind_phi & ~aloop_mask], 'ko')
         
-        ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi1_list[0]) < delta_phi1
-        plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & aloop_mask], dvr[ind_phi & aloop_mask], 'ro')
-        plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & ~aloop_mask], dvr[ind_phi & ~aloop_mask], 'ko')
+        #ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi1_list[0]) < delta_phi1
+        #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & aloop_mask], dvr[ind_phi & aloop_mask], 'ro')
+        #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & ~aloop_mask], dvr[ind_phi & ~aloop_mask], 'ko')
         
     
     vr0_ = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
@@ -961,8 +963,9 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         plt.text(0.95, 0.15, '$\chi^2_{{V_r}}$ = {:.2f}'.format(chi_vr), ha='right', transform=plt.gca().transAxes, fontsize='small')
     plt.xlabel('$\phi_1$ [deg]')
     plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
-    plt.ylim(-2,2)
+    plt.ylim(-3,3)
     plt.xlim(-60,-20)
+    #plt.xlim(-37.2,-29)
     
     plt.tight_layout()
     
@@ -1248,6 +1251,104 @@ def get_unique(label=''):
     
     np.savez('../data/unique_samples{}'.format(label), chain=models[ifinite], lnp=sampler['lnp'][ind][ifinite])
 
+def thin_chain(label='', thin=1, nstart=0):
+    """Save a thinned chain"""
+    sampler = np.load('../data/samples{}.npz'.format(label))
+    
+    nwalkers = sampler['nwalkers']
+    ntot, npar = np.shape(sampler['chain'])
+    
+    chain = trim_chain(sampler['chain'], nwalkers, nstart, npar)
+    lnp = trim_lnp(sampler['lnp'], nwalkers, nstart)
+    
+    chain = chain[::thin,:]
+    lnp = lnp[::thin]
+    
+    np.savez('../data/thinned{}'.format(label), chain=chain, lnp=lnp, nwalkers=sampler['nwalkers'])
+
+def trim_chain(chain, nwalkers, nstart, npar):
+    """Trim number of usable steps in a chain"""
+    
+    chain = chain.reshape(-1,nwalkers,npar)
+    chain = chain[nstart:,:,:]
+    chain = chain.reshape(-1, npar)
+    
+    return chain
+
+def trim_lnp(lnp, nwalkers, nstart):
+    """Trim number of usable steps in lnp"""
+    
+    lnp = lnp.reshape(-1, nwalkers)
+    lnp = lnp[nstart:,:]
+    lnp = lnp.reshape(-1)
+    
+    
+    return lnp
+
+def plot_thin_chains(label=''):
+    """"""
+    sampler = np.load('../data/thinned{}.npz'.format(label))
+    chain = sampler['chain']
+    lnp = sampler['lnp']
+    nwalkers = sampler['nwalkers']
+    ntot, Npar = np.shape(chain)
+    nstep = int(ntot/nwalkers)
+    steps = np.arange(nstep)
+    
+    print(np.sum(np.isfinite(lnp)), np.size(lnp))
+    
+    Npanel = Npar + 1
+    nrow = np.int(np.ceil(np.sqrt(Npanel)))
+    ncol = np.int(np.ceil(Npanel/nrow))
+    da = 2.5
+    params = ['T [Gyr]', '$B_x$ [pc]', '$B_y$ [pc]', '$V_x$ [km s$^{-1}$]', '$V_y$ [km s$^{-1}$]', 'log M/M$_\odot$', '$r_s$ [pc]', '$T_{gap}$ [Myr]']
+    
+    plt.close()
+    fig, ax = plt.subplots(nrow, ncol, figsize=(1.5*ncol*da, nrow*da), sharex=True)
+    
+    for i in range(Npar):
+        plt.sca(ax[int(i/nrow)][i%nrow])
+        plt.plot(steps, chain[:,i].reshape(nstep,-1), '-', rasterized=True)
+        plt.ylabel(params[i])
+    
+    plt.sca(ax[nrow-1][ncol-1])
+    plt.plot(steps, lnp.reshape(nstep,-1), '-')
+    plt.ylabel('ln P')
+    
+    for i in range(ncol):
+        plt.sca(ax[nrow-1][i])
+        plt.xlabel('Step')
+        
+    plt.tight_layout()
+    plt.savefig('../plots/thinchain{}.png'.format(label))
+
+def plot_thin_corner(label='', full=False):
+    """"""
+    sampler = np.load('../data/thinned{}.npz'.format(label))
+    chain = sampler['chain']
+    Npar = np.shape(chain)[1]
+    print(np.sum(np.isfinite(sampler['lnp'])), np.size(sampler['lnp']))
+    
+    params = ['T [Gyr]', '$b_x$ [pc]', '$b_y$ [pc]', '$V_x$ [km s$^{-1}$]', '$V_y$ [km s$^{-1}$]', 'log M/M$_\odot$', '$r_s$ [pc]', '$T_{gap}$ [Myr]']
+    if full==False:
+        params = ['T [Gyr]', 'B [pc]', 'V [km s$^{-1}$]', 'log M/M$_\odot$']
+        abr = chain[:,:-3]
+        abr[:,1] = np.sqrt(chain[:,1]**2 + chain[:,2]**2)
+        abr[:,2] = np.sqrt(chain[:,3]**2 + chain[:,4]**2)
+        abr[:,0] = chain[:,0]
+        abr[:,3] = chain[:,5]
+        if Npar>7:
+            abr[:,3] = chain[:,6]
+            abr[:,4] = chain[:,5]
+            params = ['T [Gyr]', 'B [pc]', 'V [km s$^{-1}$]', '$r_s$ [pc]', 'log M/M$_\odot$']
+            #lims = [[0.,2], [0.1,100], [10,1000], [0.001,1000], [5,9]]
+        chain = abr
+    
+    plt.close()
+    corner.corner(chain, bins=30, labels=params, plot_datapoints=False, smooth=1.5, smooth1d=1.5)
+    
+    plt.savefig('../plots/thincorner{}{:d}.png'.format(label, full))
+
 def actime(label=''):
     """Print auto-correlation time"""
     sampler = np.load('../data/samples{}.npz'.format(label))
@@ -1415,12 +1516,12 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True, old=False
         #print(lnprob(x, *lnprob_args))
         #fig, ax, chi_gap, chi_spur, chi_vr, N, lnp = lnprob_verbose(x, *lnprob_args)
         #print(lnp)
-        fig = lnprob_verbose(x, *lnprob_args)
+        fig = lnprob_verbose(x, *lnprob_args, colored=True)
         
         plt.suptitle('  '.join(['{:.2g} {}'.format(x_, u_) for x_, u_ in zip(x,params_units)]), fontsize='medium')
         plt.tight_layout(rect=[0,0,1,0.96])
         
-        plt.savefig('../plots/model_diag/likelihood_f{:d}_o{:d}_r{:d}_{}.png'.format(fast, old, rand, k))
+        plt.savefig('../plots/model_diag/likelihood_f{:d}_o{:d}_r{:d}_{}.png'.format(fast, old, rand, k), dpi=200)
 
 
 
