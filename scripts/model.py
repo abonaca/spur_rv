@@ -434,6 +434,72 @@ def make_ball_stream():
 
 # evaluate models
 
+def gd1_model(pot='log'):
+    """Find a model of GD-1 in a log halo"""
+    
+    if pot=='log':
+        ham = ham_log
+    elif pot=='mw':
+        ham = ham_mw
+    
+    # load one orbital point
+    pos = np.load('../data/{}_orbit.npy'.format(pot))
+    phi1, phi2, d, pm1, pm2, vr = pos
+
+    c = gc.GD1(phi1=phi1*u.deg, phi2=phi2*u.deg, distance=d*u.kpc, pm_phi1_cosphi2=pm1*u.mas/u.yr, pm_phi2=pm2*u.mas/u.yr, radial_velocity=vr*u.km/u.s)
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    
+    # best-fitting orbit
+    t = 20*u.Myr
+    n_steps = 1000
+    dt = t/n_steps
+
+    fit_orbit = ham.integrate_orbit(w0, dt=dt, n_steps=n_steps)
+    model_gd1 = fit_orbit.to_coord_frame(gc.GD1, galactocentric_frame=gc_frame)
+    w0 = gd.PhaseSpacePosition(model_gd1[-1].transform_to(gc_frame).cartesian)
+    print(w0)
+    pickle.dump({'w0': w0}, open('../data/short_endpoint.pkl', 'wb'))
+    #model_x = model_gd1.phi1.wrap_at(180*u.deg)
+    
+    # best-fitting orbit
+    t = 16*u.Myr
+    n_steps = 1000
+    dt = t/n_steps
+
+    fit_orbit = ham.integrate_orbit(w0, dt=dt, n_steps=n_steps)
+    model_gd1 = fit_orbit.to_coord_frame(gc.GD1, galactocentric_frame=gc_frame)
+    model_x = model_gd1.phi1.wrap_at(180*u.deg)
+    
+    # gap location at the present
+    phi1_gap = coord.Angle(-40*u.deg)
+    i_gap = np.argmin(np.abs(model_x - phi1_gap))
+    #out = {'x_gap': fit_orbit.pos.get_xyz()[:,i_gap].si, 'v_gap': fit_orbit.vel.get_d_xyz()[:,i_gap].to(u.m/u.s), 'frame': gc_frame}
+    #print(out['v_gap'].unit.__dict__)
+    #pickle.dump(out, open('../data/gap_present_{}_python3.pkl'.format(pot), 'wb'))
+    #print('{} {}\n{}\n{}'.format(i_gap, fit_orbit[i_gap], fit_orbit[0], w0))
+    #print('dt {}'.format(i_gap*dt.to(u.s)))
+    
+    out = {'x_gap': fit_orbit.pos.get_xyz()[:,i_gap].si, 'v_gap': fit_orbit.vel.get_d_xyz()[:,i_gap].to(u.m/u.s)}
+    tout = Table(out)
+    tout.pprint()
+    tout.write('../data/gap_present.fits', overwrite=True)
+    
+    plt.close()
+    fig, ax = plt.subplots(1, 1, figsize=(12, 5), sharex=True)
+
+    plt.sca(ax)
+    plt.plot(model_x.deg, model_gd1.phi2.deg, 'k-', label='Orbit')
+    plt.plot(model_x.deg[i_gap], model_gd1.phi2.deg[i_gap], 'ko', label='Gap')
+
+    plt.legend(fontsize='small')
+    plt.xlabel('$\phi_1$ [deg]')
+    plt.ylabel('$\phi_2$ [deg]')
+    
+    plt.ylim(-12,12)
+    plt.gca().set_aspect('equal')
+    
+    plt.tight_layout()
+
 def loop_stars(N=1000, t_impact=0.5*u.Gyr, bnorm=0.06*u.kpc, bx=0.06*u.kpc, vnorm=200*u.km/u.s, vx=200*u.km/u.s, M=1e7*u.Msun):
     """Identify loop stars"""
     
@@ -707,7 +773,8 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
     for e, phi in enumerate(phi1_list):
         ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi) < delta_phi1
         #print(np.median(cg.radial_velocity[ind_phi & loop_mask]), np.median(cg.radial_velocity[ind_phi & ~loop_mask]))
-        chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
+        #chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
+        chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - np.median(cg.radial_velocity[ind_phi & ~aloop_mask]))**2*sigma_vr[e]**-2
     
     # gap chi^2
     phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
@@ -722,7 +789,7 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
     ytop_model = tophat(bc, model_base, model_hat,  gap_position, gap_width)
     chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
     
-    #print(chi_gap, chi_spur, chi_vr)
+    print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
     if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
         return -(chi_gap + chi_spur + chi_vr)
     else:
@@ -776,10 +843,17 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     
     # vr chi^2
     chi_vr = 0
-    for e, phi in enumerate(phi1_list):
+    Nlist = np.size(phi1_list)
+    vr_stream = np.zeros(Nlist)*u.km/u.s
+    vr_spur = np.zeros(Nlist)*u.km/u.s
+    for e, phi in enumerate(phi1_list[:]):
         ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi) < delta_phi1
-        #print(np.median(cg.radial_velocity[ind_phi & loop_mask]), np.median(cg.radial_velocity[ind_phi & ~loop_mask]))
-        chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
+        #print(np.median(cg.radial_velocity[ind_phi & aloop_mask]), np.median(cg.radial_velocity[ind_phi & ~aloop_mask]))
+        #print(np.median(cg.radial_velocity[ind_phi & aloop_mask]), mu_vr[e])
+        #chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
+        vr_stream[e] = np.median(cg.radial_velocity[ind_phi & aloop_mask])
+        vr_spur[e] = np.median(cg.radial_velocity[ind_phi & ~aloop_mask])
+        chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - np.median(cg.radial_velocity[ind_phi & ~aloop_mask]))**2*sigma_vr[e]**-2
     
     # gap chi^2
     phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
@@ -849,15 +923,33 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
     vr0 = np.interp(cg.phi1.wrap_at(wangle).value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
     dvr = vr0 - cg.radial_velocity.to(u.km/u.s)
+    #dvr = cg.radial_velocity.to(u.km/u.s)
     plt.plot(cg.phi1.wrap_at(wangle).value, dvr, 'o')
     if colored:
         plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], dvr[loop_mask], 'o')
+        plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & aloop_mask], dvr[ind_phi & aloop_mask], 'ro')
+        plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & ~aloop_mask], dvr[ind_phi & ~aloop_mask], 'ko')
+        
+        ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi1_list[0]) < delta_phi1
+        plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & aloop_mask], dvr[ind_phi & aloop_mask], 'ro')
+        plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & ~aloop_mask], dvr[ind_phi & ~aloop_mask], 'ko')
+        
+    
+    vr0_ = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
+    dvr_stream = vr0_ - vr_stream
+    dvr_spur = vr0_ - vr_spur
+    #dvr_stream = vr_stream
+    #dvr_spur = vr_spur
+    #plt.plot(phi1_list, dvr_stream, 'ko', ms=3)
+    #plt.plot(phi1_list, dvr_spur, 'ro', ms=3)
+    #plt.errorbar(phi1_list.value, dvr_stream.to(u.km/u.s).value, yerr=sigma_vr.to(u.km/u.s).value, fmt='none', color='k')
+    #plt.errorbar(phi1_list.value, dvr_spur.to(u.km/u.s).value, yerr=sigma_vr.to(u.km/u.s).value, fmt='none', color='r')
     
     if chi_label:
         plt.text(0.95, 0.15, '$\chi^2_{{V_r}}$ = {:.2f}'.format(chi_vr), ha='right', transform=plt.gca().transAxes, fontsize='small')
     plt.xlabel('$\phi_1$ [deg]')
     plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
-    plt.ylim(-5,5)
+    plt.ylim(-2,2)
     plt.xlim(-60,-20)
     
     plt.tight_layout()
@@ -884,17 +976,22 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     vgap = np.array([w0.vel.d_x.si.value, w0.vel.d_y.si.value, w0.vel.d_z.si.value])
     
     # load orbital end point
-    pos = np.load('../data/log_orbit.npy')
-    phi1, phi2, d, pm1, pm2, vr = pos
+    #pos = np.load('../data/log_orbit.npy')
+    #phi1, phi2, d, pm1, pm2, vr = pos
 
-    c_end = gc.GD1(phi1=phi1*u.deg, phi2=phi2*u.deg, distance=d*u.kpc, pm_phi1_cosphi2=pm1*u.mas/u.yr, pm_phi2=pm2*u.mas/u.yr, radial_velocity=vr*u.km/u.s)
-    w0_end = gd.PhaseSpacePosition(c_end.transform_to(gc_frame).cartesian)
+    #c_end = gc.GD1(phi1=phi1*u.deg, phi2=phi2*u.deg, distance=d*u.kpc, pm_phi1_cosphi2=pm1*u.mas/u.yr, pm_phi2=pm2*u.mas/u.yr, radial_velocity=vr*u.km/u.s)
+    #w0_end = gd.PhaseSpacePosition(c_end.transform_to(gc_frame).cartesian)
+    
+    pkl = pickle.load(open('../data/short_endpoint.pkl', 'rb'))
+    w0_end = pkl['w0']
     xend = np.array([w0_end.pos.x.si.value, w0_end.pos.y.si.value, w0_end.pos.z.si.value])
     vend = np.array([w0_end.vel.d_x.si.value, w0_end.vel.d_y.si.value, w0_end.vel.d_z.si.value])
     
     dt_coarse = 0.5*u.Myr
-    Tstream = 56*u.Myr
-    Tgap = 29.176*u.Myr
+    #Tstream = 56*u.Myr
+    #Tgap = 29.176*u.Myr
+    Tstream = 16*u.Myr
+    Tgap = 9.176*u.Myr
     Nstream = 2000
     N2 = int(Nstream*0.5)
     dt_stream = Tstream/Nstream
@@ -903,7 +1000,8 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     Tenc = 0.01*u.Gyr
     
     # gap comparison
-    bins = np.linspace(-60,-20,30)
+    #bins = np.linspace(-60,-20,30)
+    bins = np.linspace(-55,-25,20)
     bc = 0.5 * (bins[1:] + bins[:-1])
     Nb = np.size(bc)
     Nside_min = 5
@@ -946,11 +1044,11 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
 
     # tighten likelihood
     #delta_phi2 = 0.1
-    #phi2_err = 0.03
-    percentile1 = 2
-    percentile2 = 94
-    delta_phi1 = 0.5*u.deg
-    sigma_vr = np.array([0.2, 0.2])*u.km/u.s
+    phi2_err = 0.15
+    percentile1 = 1
+    percentile2 = 90
+    delta_phi1 = 0.3*u.deg
+    sigma_vr = np.array([0.15, 0.15])*u.km/u.s
     
     potential = 3
     Vh = 225*u.km/u.s
@@ -1035,6 +1133,12 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
         for i in range(N):
             args = copy.deepcopy(lnprob_args[:])
             lnp[i] = lnprob(p0[i], *args)
+
+            #print(p0[i])
+            #fig, ax, chi_gap, chi_spur, chi_vr, N, lnp[i] = lnprob_verbose(p0[i], *args)
+            #plt.suptitle('  '.join(['{:.2g} {}'.format(x_, u_) for x_, u_ in zip(p0[i],params_units)]), fontsize='medium')
+            #plt.tight_layout(rect=[0,0,1,0.96])
+            #plt.savefig('../plots/model_diag/runinit_{:03d}.png'.format(i))
         
         print(lnp)
         print(N, np.sum(np.isfinite(lnp)))
