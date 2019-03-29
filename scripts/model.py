@@ -742,7 +742,7 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
         par_perturb = np.array([M.si.value, 0., 0., 0.])
     else:
         t_impact, bx, by, vx, vy, M, rs, Tgap = params
-        par_perturb = np.array([M.si.value, rs.si.value, 0., 0., 0.])
+        par_perturb = np.array([M.to(u.kg).value, rs.to(u.m).value, 0., 0., 0.])
         if x[6]<0:
             return -np.inf
     
@@ -750,7 +750,7 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
         return -np.inf
     
     # calculate model
-    x1, x2, x3, v1, v2, v3, dE = interact.abinit_interaction(xend, vend, dt_coarse.si.value, dt_fine.si.value, t_impact.si.value, Tenc.si.value, Tstream.si.value, Tgap.si.value, Nstream, par_pot, potential, par_perturb, potential_perturb, bx.si.value, by.si.value, vx.si.value, vy.si.value)
+    x1, x2, x3, v1, v2, v3, dE = interact.abinit_interaction(xend, vend, dt_coarse.to(u.s).value, dt_fine.to(u.s).value, t_impact.to(u.s).value, Tenc.to(u.s).value, Tstream.to(u.s).value, Tgap.to(u.s).value, Nstream, par_pot, potential, par_perturb, potential_perturb, bx.to(u.m).value, by.to(u.m).value, vx.to(u.m/u.s).value, vy.to(u.m/u.s).value)
     
     c = coord.Galactocentric(x=x1*u.m, y=x2*u.m, z=x3*u.m, v_x=v1*u.m/u.s, v_y=v2*u.m/u.s, v_z=v3*u.m/u.s, **gc_frame_dict)
     cg = c.transform_to(gc.GD1)
@@ -796,7 +796,7 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
     ytop_model = tophat(bc, model_base, model_hat,  gap_position, gap_width)
     chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
     
-    print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
+    #print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
     if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
         return -(chi_gap + chi_spur + chi_vr)
     else:
@@ -992,10 +992,9 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     vgap = np.array([w0.vel.d_x.si.value, w0.vel.d_y.si.value, w0.vel.d_z.si.value])
     
     # load orbital end point
-    pkl = pickle.load(open('../data/short_endpoint.pkl', 'rb'))
-    w0_end = pkl['w0']
-    xend = np.array([w0_end.pos.x.si.value, w0_end.pos.y.si.value, w0_end.pos.z.si.value])
-    vend = np.array([w0_end.vel.d_x.si.value, w0_end.vel.d_y.si.value, w0_end.vel.d_z.si.value])
+    pkl = Table.read('../data/short_endpoint.fits')
+    xend = np.array(pkl['xend'])
+    vend = np.array(pkl['vend'])
     
     dt_coarse = 0.5*u.Myr
     #Tstream = 56*u.Myr
@@ -1059,13 +1058,12 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     percentile2 = 90
     delta_phi1 = 0.3*u.deg
     sigma_vr = np.array([0.15, 0.15])*u.km/u.s
-    #sigma_vr = np.array([0.5, 0.5])*u.km/u.s
     
     potential = 3
     Vh = 225*u.km/u.s
     q = 1*u.Unit(1)
     rhalo = 0*u.pc
-    par_pot = np.array([Vh.si.value, q.value, rhalo.si.value])
+    par_pot = np.array([Vh.to(u.m/u.s).value, q.value, rhalo.to(u.m).value])
     
     chigap_max = 0.6567184385873621
     chispur_max = 1.0213837095314207
@@ -1117,7 +1115,6 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     if cont==False:
         seed = 614398
         np.random.seed(seed)
-        #p0 = [np.random.randn(ndim) for i in range(nwalkers)]
         p0 = (np.random.randn(ndim * nwalkers).reshape((nwalkers, ndim))*1e-4 + 1.)*np.array(params)[np.newaxis,:]
         
         seed = 3465
@@ -1155,7 +1152,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
         
         return
     
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, threads=nth, args=lnprob_args, runtime_sortingfn=sort_on_runtime)
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, threads=nth, args=lnprob_args, runtime_sortingfn=sort_on_runtime, a=0.5)
     
     t1 = time.time()
     pos, prob, state = sampler.run_mcmc(p0, steps, rstate0=genstate)
