@@ -1145,6 +1145,104 @@ def afeh_comparison(priority=1):
     plt.savefig('../plots/afeh_comparison.{:d}.png'.format(priority))
 
 
+def vr_median():
+    """"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
+    t = t[ind]
+    
+    M = 1000
+    fields = np.unique(t['field'])
+    N = np.size(fields)
+    phi1 = np.zeros(N)
+    sigma = np.zeros(N)
+
+    v_med = np.zeros(N)
+    v_std = np.zeros(N)
+    sigma_med = np.zeros(N)
+    sigma_std = np.zeros(N)
+    
+    for e in range(N):
+        ind = t['field']==fields[e]
+        t_ = t[ind]
+        Nstar = len(t_)
+        phi1[e] = np.median(t_['phi1'])
+        
+        # subtract local gradient
+        p = np.polyfit(t_['phi1'], t_['Vrad'], 1, w=t_['std_Vrad']**-1)
+        poly = np.poly1d(p)
+        
+        dvr = t_['Vrad'] - poly(t_['phi1'])
+        sigma[e] = np.std(dvr)
+
+        vrad = np.random.randn(Nstar*M).reshape(Nstar,M) + t_['Vrad'][:,np.newaxis]
+        dvr = vrad - poly(t_['phi1'])[:,np.newaxis]
+        
+        vs = np.median(vrad, axis=0)
+        v_med[e] = np.median(vs)
+        v_std[e] = np.std(vs)
+        
+        sigmas = np.std(dvr, axis=0)
+        sigma_med[e] = np.median(sigmas)
+        sigma_std[e] = np.std(sigmas)
+    
+    q = np.polyfit(phi1, v_med, 2, w=v_std**-1)
+    qpoly = np.poly1d(q)
+    dv_med = v_med - qpoly(phi1)
+    
+    spur = (fields==2) | (fields==4) | (fields==5)
+    stream = ~spur
+    
+    spur_global = (t['field']==2) | (t['field']==4) | (t['field']==5)
+    stream_global = ~spur_global
+    labels = ['Stream', 'Spur']
+    colors = ['deepskyblue', 'midnightblue']
+    colors = [mpl.cm.Blues(0.6), mpl.cm.Blues(0.85)]
+    
+    plt.close()
+    fig, ax = plt.subplots(2,1,figsize=(6,6), sharex=True)
+    
+    plt.sca(ax[0])
+    for e, ind in enumerate([stream_global, spur_global]):
+        plt.plot(t['phi1'][ind], t['Vrad'][ind], 'o', label=labels[e], color=colors[e])
+        plt.errorbar(t['phi1'][ind], t['Vrad'][ind], yerr=t['std_Vrad'][ind], fmt='none', color=colors[e], label='')
+    
+    x0, x1 = plt.gca().get_xlim()
+    y0, y1 = plt.gca().get_ylim()
+    x_ = np.linspace(x0, x1, 100)
+    y_ = qpoly(x_)
+    plt.plot(x_, y_, 'k-', alpha=0.3, lw=2, zorder=0)
+    
+    plt.xlim(x0, x1)
+    plt.ylim(y0, y1)
+    plt.legend(frameon=False, loc=1)
+    plt.ylabel('$V_r$ [km s$^{-1}$]')
+    plt.text(0.05, 0.1, 'Individual members', transform=plt.gca().transAxes)
+    
+    plt.sca(ax[1])
+    for e, ind in enumerate([stream, spur]):
+        plt.plot(phi1[ind], dv_med[ind], 'o', color=colors[e], label=labels[e])
+        plt.errorbar(phi1[ind], dv_med[ind], yerr=v_std[ind], fmt='none', color=colors[e], label='')
+    
+    plt.axhline(0, color='k', alpha=0.3, lw=2, zorder=0)
+    plt.legend(frameon=False, loc=3)
+    plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
+    plt.ylim(-3,3)
+    #plt.text(0.05, 0.1, 'Field median', transform=plt.gca().transAxes)
+    
+    #plt.sca(ax[2])
+    #for e, ind in enumerate([stream, spur]):
+        ##plt.plot(phi1[ind], sigma[ind], 'o')
+        #plt.plot(phi1[ind], sigma_med[ind], 'o', color=colors[e])
+        #plt.errorbar(phi1[ind], sigma_med[ind], yerr=sigma_std[ind], fmt='none', color=colors[e])
+    
+    plt.xlabel('$\phi_1$ [deg]')
+    #plt.ylabel('$\sigma_{V_r}$ [km s$^{-1}$]')
+    #plt.text(0.05, 0.1, 'Field dispersion', transform=plt.gca().transAxes)
+    plt.tight_layout(h_pad=0.2)
+    plt.savefig('../plots/kinematic_profile_median.png', dpi=200)
+    
 def vr_dispersion():
     """"""
     
