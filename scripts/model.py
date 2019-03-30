@@ -1306,11 +1306,11 @@ def plot_thin_chains(label=''):
     
     for i in range(Npar):
         plt.sca(ax[int(i/nrow)][i%nrow])
-        plt.plot(steps, chain[:,i].reshape(nstep,-1), '-', rasterized=True)
+        plt.plot(steps, chain[:nstep*nwalkers,i].reshape(nstep,-1), '-', rasterized=True)
         plt.ylabel(params[i])
     
     plt.sca(ax[nrow-1][ncol-1])
-    plt.plot(steps, lnp.reshape(nstep,-1), '-')
+    plt.plot(steps, lnp[:nstep*nwalkers].reshape(nstep,-1), '-')
     plt.ylabel('ln P')
     
     for i in range(ncol):
