@@ -1320,7 +1320,7 @@ def plot_thin_chains(label=''):
     plt.tight_layout()
     plt.savefig('../plots/thinchain{}.png'.format(label))
 
-def plot_thin_corner(label='', full=False):
+def plot_thin_corner(label='', full=False, smooth=1., bins=30):
     """"""
     sampler = np.load('../data/thinned{}.npz'.format(label))
     chain = sampler['chain']
@@ -1343,7 +1343,7 @@ def plot_thin_corner(label='', full=False):
         chain = abr
     
     plt.close()
-    corner.corner(chain, bins=30, labels=params, plot_datapoints=False, smooth=1.5, smooth1d=1.5)
+    corner.corner(chain, bins=bins, labels=params, plot_datapoints=False, smooth=smooth, smooth1d=smooth)
     
     plt.savefig('../plots/thincorner{}{:d}.png'.format(label, full))
 
