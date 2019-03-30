@@ -1290,6 +1290,7 @@ def plot_thin_chains(label=''):
     nwalkers = sampler['nwalkers']
     ntot, Npar = np.shape(chain)
     nstep = int(ntot/nwalkers)
+    print(ntot, nstep*nwalkers)
     steps = np.arange(nstep)
     
     print(np.sum(np.isfinite(lnp)), np.size(lnp))
