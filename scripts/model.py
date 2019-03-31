@@ -1372,13 +1372,15 @@ def run_nest(nth=10, nlive=500, dynamic=True):
     
     if dynamic:
         label = 'dynamic'
-        sampler = dynesty.DynamicNestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool)
+        sampler = dynesty.DynamicNestedSampler(lnprob_nest, prior_transform, ndim, logl_args=lnprob_args, queue_size=nth, pool=pool)
+        sampler.run_nested(dlogz_init=1000, nlive_init=2000, nlive_batch=100, maxbatch=10)
     else:
         label = 'static'
         sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool)
-    sampler.run_nested()
-    sresults = sampler.results
-    pickle.dump(sresults, open('../data/gd1_{:s}.pkl'.format(label),'wb'))
+        sampler.run_nested()
+    
+    results = sampler.results
+    pickle.dump(results, open('../data/gd1_{:s}.pkl'.format(label),'wb'))
     
 def prior_transform(u):
     """"""
