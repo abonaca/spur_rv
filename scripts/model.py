@@ -24,6 +24,7 @@ from gala.dynamics import mockstream
 import scipy.interpolate
 import emcee
 import corner
+import dynesty
 
 #from colossus.cosmology import cosmology
 #from colossus.halo import concentration
@@ -881,7 +882,7 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
     
     plt.close()
-    fig, ax = plt.subplots(3,2,figsize=(16,9))
+    fig, ax = plt.subplots(3,2,figsize=(12,9))
     
     plt.sca(ax[0][0])
     plt.plot(bc, h_model, 'o')
@@ -900,6 +901,7 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     plt.ylabel('$\Delta$ E')
     
     colors = [mpl.cm.Blues(0.6), mpl.cm.Blues(0.85)]
+    colors = ['tab:blue', 'tab:orange']
 
     plt.sca(ax[2][0])
     plt.plot(cg.phi1.wrap_at(wangle).value, cg.phi2.value, 'o', color=colors[0])
@@ -1173,6 +1175,136 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     sampler.pool.terminate()
 
 
+# nested sampling
+def run_nest(nth=10):
+    """"""
+    pkl = Table.read('../data/gap_present.fits')
+    xunit = pkl['x_gap'].unit
+    vunit = pkl['v_gap'].unit
+    c = coord.Galactocentric(x=pkl['x_gap'][0]*xunit, y=pkl['x_gap'][1]*xunit, z=pkl['x_gap'][2]*xunit, v_x=pkl['v_gap'][0]*vunit, v_y=pkl['v_gap'][1]*vunit, v_z=pkl['v_gap'][2]*vunit, **gc_frame_dict)
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    xgap = np.array([w0.pos.x.si.value, w0.pos.y.si.value, w0.pos.z.si.value])
+    vgap = np.array([w0.vel.d_x.si.value, w0.vel.d_y.si.value, w0.vel.d_z.si.value])
+    
+    # load orbital end point
+    pkl = Table.read('../data/short_endpoint.fits')
+    xend = np.array(pkl['xend'])
+    vend = np.array(pkl['vend'])
+    
+    dt_coarse = 0.5*u.Myr
+    #Tstream = 56*u.Myr
+    #Tgap = 29.176*u.Myr
+    Tstream = 16*u.Myr
+    Tgap = 9.176*u.Myr
+    Nstream = 2000
+    N2 = int(Nstream*0.5)
+    dt_stream = Tstream/Nstream
+    dt_fine = 0.05*u.Myr
+    wangle = 180*u.deg
+    Tenc = 0.01*u.Gyr
+    
+    # gap comparison
+    #bins = np.linspace(-60,-20,30)
+    bins = np.linspace(-55,-25,20)
+    bc = 0.5 * (bins[1:] + bins[:-1])
+    Nb = np.size(bc)
+    Nside_min = 5
+    f_gap = 0.5
+    delta_phi2 = 0.5
+    
+    gap = np.load('../data/gap_properties.npz')
+    phi1_edges = gap['phi1_edges']
+    gap_position = gap['position']
+    gap_width = gap['width']
+    gap_yerr = gap['yerr']
+    base_mask = ((bc>phi1_edges[0]) & (bc<phi1_edges[1])) | ((bc>phi1_edges[2]) & (bc<phi1_edges[3]))
+    hat_mask = (bc>phi1_edges[4]) & (bc<phi1_edges[5])
+    
+    p = np.load('../data/polytrack.npy')
+    poly = np.poly1d(p)
+    x_ = np.linspace(-100,0,100)
+    y_ = poly(x_)
+    
+    # spur comparison
+    sp = np.load('../data/spur_track.npz')
+    spx = sp['x']
+    spy = sp['y']
+    phi2_err = 0.2
+    phi1_min = -50*u.deg
+    phi1_max = -30*u.deg
+    percentile1 = 3
+    percentile2 = 92
+    quad_phi1 = -32*u.deg
+    quad_phi2 = 0.8*u.deg
+    Nquad = 1
+    
+    # vr comparison
+    pkl = pickle.load(open('../data/vr_unperturbed.pkl', 'rb'))
+    phi1_list = pkl['phi1_list']
+    delta_phi1 = pkl['delta_phi1']
+    delta_phi1 = 1.5*u.deg
+    mu_vr = pkl['mu_vr']
+    sigma_vr = pkl['sigma_vr']
+
+    # tighten likelihood
+    #delta_phi2 = 0.1
+    phi2_err = 0.15
+    percentile1 = 1
+    percentile2 = 90
+    delta_phi1 = 0.3*u.deg
+    sigma_vr = np.array([0.15, 0.15])*u.km/u.s
+    
+    potential = 3
+    Vh = 225*u.km/u.s
+    q = 1*u.Unit(1)
+    rhalo = 0*u.pc
+    par_pot = np.array([Vh.to(u.m/u.s).value, q.value, rhalo.to(u.m).value])
+    
+    chigap_max = 0.6567184385873621
+    chispur_max = 1.0213837095314207
+    
+    chigap_max = 0.8
+    chispur_max = 1.2
+    
+    # parameters to sample
+    t_impact = 0.48*u.Gyr
+    M = 6.7e6*u.Msun
+    rs = 0.66*u.pc
+    bx = 22*u.pc
+    by = -3.3*u.pc
+    vx = 240*u.km/u.s
+    vy = 17*u.km/u.s
+
+    potential_perturb = 2
+    if potential_perturb==1:
+        params_list = [t_impact, bx, by, vx, vy, M, Tgap]
+    elif potential_perturb==2:
+        params_list = [t_impact, bx, by, vx, vy, M, rs, Tgap]
+    params_units = [p_.unit for p_ in params_list]
+    params = [p_.value for p_ in params_list]
+    params[5] = np.log10(params[5])
+    
+    model_args = [params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb]
+    gap_args = [poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width]
+    spur_args = [N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad]
+    vr_args = [phi1_list, delta_phi1, mu_vr, sigma_vr]
+    lnp_args = [chigap_max, chispur_max]
+    lnprob_args = model_args + gap_args + spur_args + vr_args + lnp_args
+    
+    ndim = len(params)
+    
+    sampler = dynesty.NestedSampler(lnprob, prior_transform, ndim, nlive=500, logl_args=lnprob_args, queue_size=nth)
+    sampler.run_nested()
+    sresults = sampler.results
+    pickle.dump(sresults, open('../data/gd1_static.pkl','wb'))
+    
+def prior_transform(u):
+    """"""
+    x1 = np.array([0, -100, -100, -500, -500, 5.5, 0, 8])
+    x2 = np.array([3, 100, 100, 500, 500, 8, 100, 10])
+    
+    return (x2 - x1)*u + x1
+    
 # chain diagnostics
 
 def plot_corner(label='', full=False):
@@ -1353,19 +1485,26 @@ def actime(label=''):
     x = sampler['chain']
     print(emcee.autocorr.integrated_time(x))
 
-def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True, old=False):
+def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True, old=False, bpos=True):
     """"""
     chain = np.load('../data/unique_samples{}.npz'.format(label))['chain']
     vnorm = np.sqrt(chain[:,3]**2 + chain[:,4]**2)
-    if fast:
-        ind = vnorm>490
-    else:
-        ind = vnorm<350
-    if old:
-        ind2 = chain[:,0]>0.9
-    else:
-        ind2 = chain[:,0]>0
+    #if fast:
+        #ind = vnorm>490
+    #else:
+        #ind = vnorm<350
+    #if old:
+        #ind2 = chain[:,0]>0.9
+    #else:
+        #ind2 = chain[:,0]>0
     #chain = chain[ind & ind2]
+    
+    if bpos:
+        ind = chain[:,1]>15
+    else:
+        ind = chain[:,1]<=15
+    chain = chain[ind]
+    
     Nsample = np.shape(chain)[0]
     if rand:
         np.random.seed(59)
@@ -1519,7 +1658,7 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True, old=False
         plt.suptitle('  '.join(['{:.2g} {}'.format(x_, u_) for x_, u_ in zip(x,params_units)]), fontsize='medium')
         plt.tight_layout(rect=[0,0,1,0.96])
         
-        plt.savefig('../plots/model_diag/likelihood_f{:d}_o{:d}_r{:d}_{}.png'.format(fast, old, rand, k), dpi=200)
+        plt.savefig('../plots/model_diag/likelihood_b{:d}_r{:d}_{}.png'.format(bpos, rand, k), dpi=200)
 
 
 
