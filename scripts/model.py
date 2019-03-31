@@ -803,6 +803,80 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
     else:
         return -np.inf
 
+def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb, poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, phi1_list, delta_phi1, mu_vr, sigma_vr, chigap_max, chispur_max):
+    """Calculate pseudo-likelihood of a stream==orbit model, evaluating against the gap location & width, spur location & extent, and radial velocity offsets"""
+    
+    #if (x[0]<0) | (x[0]>14) | (np.sqrt(x[3]**2 + x[4]**2)>500):
+    if (x[0]<0) | (x[0]>0.6) | (x[3]<0) | (x[1]<0) | (np.sqrt(x[3]**2 + x[4]**2)>500):
+        return -1e7
+    
+    x[5] = 10**x[5]
+    params = [x_*u_ for x_, u_ in zip(x, params_units)]
+    if potential_perturb==1:
+        t_impact, bx, by, vx, vy, M, Tgap = params
+        par_perturb = np.array([M.si.value, 0., 0., 0.])
+    else:
+        t_impact, bx, by, vx, vy, M, rs, Tgap = params
+        par_perturb = np.array([M.to(u.kg).value, rs.to(u.m).value, 0., 0., 0.])
+        if x[6]<0:
+            return -1e7
+    
+    if (Tgap<0*u.Myr) | (Tgap>Tstream):
+        return -1e7
+    
+    # calculate model
+    x1, x2, x3, v1, v2, v3, dE = interact.abinit_interaction(xend, vend, dt_coarse.to(u.s).value, dt_fine.to(u.s).value, t_impact.to(u.s).value, Tenc.to(u.s).value, Tstream.to(u.s).value, Tgap.to(u.s).value, Nstream, par_pot, potential, par_perturb, potential_perturb, bx.to(u.m).value, by.to(u.m).value, vx.to(u.m/u.s).value, vy.to(u.m/u.s).value)
+    
+    c = coord.Galactocentric(x=x1*u.m, y=x2*u.m, z=x3*u.m, v_x=v1*u.m/u.s, v_y=v2*u.m/u.s, v_z=v3*u.m/u.s, **gc_frame_dict)
+    cg = c.transform_to(gc.GD1)
+    
+    # spur chi^2
+    top1 = np.percentile(dE[:N2], percentile1)
+    top2 = np.percentile(dE[N2:], percentile2)
+    ind_loop1 = np.where(dE[:N2]<top1)[0][0]
+    ind_loop2 = np.where(dE[N2:]>top2)[0][-1]
+    
+    f = scipy.interpolate.interp1d(spx, spy, kind='quadratic')
+    
+    aloop_mask = np.zeros(Nstream, dtype=bool)
+    aloop_mask[ind_loop1:ind_loop2+N2] = True
+    phi1_mask = (cg.phi1.wrap_at(wangle)>phi1_min) & (cg.phi1.wrap_at(wangle)<phi1_max)
+    loop_mask = aloop_mask & phi1_mask
+    Nloop = np.sum(loop_mask)
+    
+    loop_quadrant = (cg.phi1.wrap_at(wangle)[loop_mask]>quad_phi1) & (cg.phi2[loop_mask]>quad_phi2)
+    if np.sum(loop_quadrant)<Nquad:
+        return -1e7
+    
+    chi_spur = np.sum((cg.phi2[loop_mask].value - f(cg.phi1.wrap_at(wangle).value[loop_mask]))**2/phi2_err**2)/Nloop
+    
+    # vr chi^2
+    chi_vr = 0
+    for e, phi in enumerate(phi1_list):
+        ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi) < delta_phi1
+        #print(np.median(cg.radial_velocity[ind_phi & loop_mask]), np.median(cg.radial_velocity[ind_phi & ~loop_mask]))
+        #chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
+        chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - np.median(cg.radial_velocity[ind_phi & ~aloop_mask]))**2*sigma_vr[e]**-2
+    
+    # gap chi^2
+    phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
+    h_model, be = np.histogram(cg.phi1[phi2_mask].wrap_at(wangle).value, bins=bins)
+    yerr = np.sqrt(h_model+1)
+    
+    model_base = np.median(h_model[base_mask])
+    model_hat = np.median(h_model[hat_mask])
+    if (model_base<Nside_min) | (model_hat>model_base*f_gap):
+        return -1e7
+    
+    ytop_model = tophat(bc, model_base, model_hat,  gap_position, gap_width)
+    chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
+    
+    #print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
+    if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
+        return -(chi_gap + chi_spur + chi_vr)
+    else:
+        return -1e7
+
 def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb, poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, phi1_list, delta_phi1, mu_vr, sigma_vr, chigap_max, chispur_max, colored=True, plot_comp=True, chi_label=True):
     """Calculate pseudo-likelihood of a stream==orbit model, evaluating against the gap location & width, spur location & extent, and radial velocity offsets"""
     
@@ -1177,7 +1251,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
 
 # nested sampling
 from multiprocessing import Pool
-def run_nest(nth=10, nlive=500):
+def run_nest(nth=10, nlive=500, dynamic=True):
     """"""
     pkl = Table.read('../data/gap_present.fits')
     xunit = pkl['x_gap'].unit
@@ -1296,10 +1370,15 @@ def run_nest(nth=10, nlive=500):
     pool = Pool(nth)
     np.random.seed(2587)
     
-    sampler = dynesty.NestedSampler(lnprob, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool)
+    if dynamic:
+        label = 'dynamic'
+        sampler = dynesty.DynamicNestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool)
+    else:
+        label = 'static'
+        sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool)
     sampler.run_nested()
     sresults = sampler.results
-    pickle.dump(sresults, open('../data/gd1_static.pkl','wb'))
+    pickle.dump(sresults, open('../data/gd1_{:s}.pkl'.format(label),'wb'))
     
 def prior_transform(u):
     """"""
