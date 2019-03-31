@@ -1176,6 +1176,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
 
 
 # nested sampling
+from multiprocessing import Pool
 def run_nest(nth=10):
     """"""
     pkl = Table.read('../data/gap_present.fits')
@@ -1292,8 +1293,9 @@ def run_nest(nth=10):
     lnprob_args = model_args + gap_args + spur_args + vr_args + lnp_args
     
     ndim = len(params)
+    pool = Pool(nth)
     
-    sampler = dynesty.NestedSampler(lnprob, prior_transform, ndim, nlive=500, logl_args=lnprob_args, queue_size=nth)
+    sampler = dynesty.NestedSampler(lnprob, prior_transform, ndim, nlive=500, logl_args=lnprob_args, queue_size=nth, pool=pool)
     sampler.run_nested()
     sresults = sampler.results
     pickle.dump(sresults, open('../data/gd1_static.pkl','wb'))
