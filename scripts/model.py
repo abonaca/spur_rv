@@ -1177,7 +1177,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
 
 # nested sampling
 from multiprocessing import Pool
-def run_nest(nth=10):
+def run_nest(nth=10, nlive=500):
     """"""
     pkl = Table.read('../data/gap_present.fits')
     xunit = pkl['x_gap'].unit
@@ -1294,8 +1294,9 @@ def run_nest(nth=10):
     
     ndim = len(params)
     pool = Pool(nth)
+    np.random.seed(2587)
     
-    sampler = dynesty.NestedSampler(lnprob, prior_transform, ndim, nlive=500, logl_args=lnprob_args, queue_size=nth, pool=pool)
+    sampler = dynesty.NestedSampler(lnprob, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool)
     sampler.run_nested()
     sresults = sampler.results
     pickle.dump(sresults, open('../data/gd1_static.pkl','wb'))
@@ -1304,6 +1305,9 @@ def prior_transform(u):
     """"""
     x1 = np.array([0, -100, -100, -500, -500, 5.5, 0, 8])
     x2 = np.array([3, 100, 100, 500, 500, 8, 100, 10])
+    
+    x1 = np.array([0, -50, -50, -400, -400, 6, 0, 8.5])
+    x2 = np.array([1, 50, 50, 400, 400, 8, 30, 9.5])
     
     return (x2 - x1)*u + x1
     
