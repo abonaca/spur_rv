@@ -25,6 +25,7 @@ import scipy.interpolate
 import emcee
 import corner
 import dynesty
+from multiprocessing import Pool
 
 #from colossus.cosmology import cosmology
 #from colossus.halo import concentration
@@ -807,7 +808,7 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     """Calculate pseudo-likelihood of a stream==orbit model, evaluating against the gap location & width, spur location & extent, and radial velocity offsets"""
     
     #if (x[0]<0) | (x[0]>14) | (np.sqrt(x[3]**2 + x[4]**2)>500):
-    if (x[0]<0) | (x[0]>0.6) | (x[3]<0) | (x[1]<0) | (np.sqrt(x[3]**2 + x[4]**2)>500):
+    if (np.sqrt(x[3]**2 + x[4]**2)>500):
         return -1e7
     
     x[5] = 10**x[5]
@@ -1250,7 +1251,6 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
 
 
 # nested sampling
-from multiprocessing import Pool
 def run_nest(nth=10, nlive=500, dynamic=True):
     """"""
     pkl = Table.read('../data/gap_present.fits')
@@ -1539,7 +1539,7 @@ def plot_thin_chains(label=''):
     plt.tight_layout()
     plt.savefig('../plots/thinchain{}.png'.format(label))
 
-def plot_thin_corner(label='', full=False, smooth=1., bins=30):
+def plot_thin_corner(label='', full=False, smooth=1., bins=30, plot_data=False):
     """"""
     sampler = np.load('../data/thinned{}.npz'.format(label))
     chain = sampler['chain']
@@ -1562,7 +1562,7 @@ def plot_thin_corner(label='', full=False, smooth=1., bins=30):
         chain = abr
     
     plt.close()
-    corner.corner(chain, bins=bins, labels=params, plot_datapoints=False, smooth=smooth, smooth1d=smooth)
+    corner.corner(chain, bins=bins, labels=params, plot_datapoints=plot_data, smooth=smooth, smooth1d=smooth)
     
     plt.savefig('../plots/thincorner{}{:d}.png'.format(label, full))
 
@@ -1748,5 +1748,176 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True, old=False
         plt.savefig('../plots/model_diag/likelihood_b{:d}_r{:d}_{}.png'.format(bpos, rand, k), dpi=200)
 
 
+# perturber @ present
+
+def perturber_orbit(label='', N=10, seed=385761):
+    """"""
+    np.random.seed(seed)
+    
+    # load perturber properties
+    sampler = np.load('../data/thinned{}.npz'.format(label))
+    units = [u.Gyr, u.pc, u.pc, u.km/u.s, u.km/u.s, u.Msun, u.pc, u.Myr]
+    
+    plt.close()
+    fig, ax = plt.subplots(1,2,figsize=(12,6), subplot_kw={'adjustable':'datalim'})
+    
+    for i in np.random.randint(0, high=np.size(sampler['lnp']), size=N):
+        p = sampler['chain'][i]
+        p[5] = 10**p[5]
+        t_impact, bx, by, vx, vy, M, rs, Tgap = [x*y for x, y in zip(p, units)]
+        
+        # load orbital end point
+        pkl = Table.read('../data/short_endpoint.fits')
+        xend = np.array(pkl['xend'])*u.m
+        vend = np.array(pkl['vend'])*u.m/u.s
+        c_end = coord.Galactocentric(x=xend[0], y=xend[1], z=xend[2], v_x=vend[0], v_y=vend[1], v_z=vend[2], **gc_frame_dict)
+        w0_end = gd.PhaseSpacePosition(c_end.transform_to(gc_frame).cartesian)
+        
+        # find gap location at the time of impact
+        Tinit = t_impact - Tgap
+        dt_init = 0.05*u.Myr
+        n_steps = int(Tinit/dt_init)
+        
+        fit_orbit = ham.integrate_orbit(w0_end, dt=-dt_init, n_steps=n_steps)
+        xgap = fit_orbit.pos.get_xyz()[:,-1]
+        vgap = (fit_orbit.vel.get_d_xyz()[:,-1]).to(u.km/u.s)
+        
+        i = np.array([1,0,0], dtype=float)
+        j = np.array([0,1,0], dtype=float)
+        k = np.array([0,0,1], dtype=float)
+        
+        # find positional plane
+        bi = np.cross(j, vgap)
+        bi = bi/np.linalg.norm(bi)
+        bj = np.cross(vgap, bi)
+        bj = bj/np.linalg.norm(bj)
+        
+        b = bx*bi + by*bj
+        xsub = xgap + b
+        
+        # find velocity plane
+        vi = np.cross(vgap, b)
+        vi = vi/np.linalg.norm(vi)
+        vj = np.cross(b, vi)
+        vj = vj/np.linalg.norm(vj)
+        
+        vsub = vx*vi + vy*vj
+        
+        # perturber's orbit
+        c = coord.Galactocentric(x=xsub[0], y=xsub[1], z=xsub[2], v_x=vsub[0], v_y=vsub[1], v_z=vsub[2], **gc_frame_dict)
+        w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+        
+        dt = 0.5*u.Myr
+        n_steps = int(t_impact/dt)
+        
+        orbit_sub = ham.integrate_orbit(w0, dt=dt, n_steps=n_steps)
+        x = orbit_sub.pos.get_xyz()
+        
+        plt.sca(ax[0])
+        plt.plot(x[0], x[1], 'k-', lw=0.2)
+        plt.plot(xsub[0], xsub[1], 'ro', ms=4)
+        
+        plt.sca(ax[1])
+        plt.plot(x[0], x[2], 'k-', lw=0.2)
+        plt.plot(xsub[0], xsub[2], 'ro', ms=4)
+    
+    plt.sca(ax[0])
+    plt.xlabel('x [kpc]')
+    plt.ylabel('y [kpc]')
+    plt.gca().set_aspect('equal')
+    
+    plt.sca(ax[1])
+    plt.xlabel('x [kpc]')
+    plt.ylabel('z [kpc]')
+    plt.gca().set_aspect('equal')
+    
+    plt.tight_layout()
+    plt.savefig('../plots/perturber_orbit_cartesian_N{:04d}.png'.format(N), dpi=200)
+
+def perturber_sky(label='', N=10, seed=385761, color='dist'):
+    """"""
+    np.random.seed(seed)
+    
+    # load perturber properties
+    sampler = np.load('../data/thinned{}.npz'.format(label))
+    units = [u.Gyr, u.pc, u.pc, u.km/u.s, u.km/u.s, u.Msun, u.pc, u.Myr]
+    
+    plt.close()
+    fig = plt.figure(figsize=(12,8))
+    ax = fig.add_subplot(111, projection='mollweide')
+
+    for i in np.random.randint(0, high=np.size(sampler['lnp']), size=N):
+        p = sampler['chain'][i]
+        p[5] = 10**p[5]
+        t_impact, bx, by, vx, vy, M, rs, Tgap = [x*y for x, y in zip(p, units)]
+        
+        # load orbital end point
+        pkl = Table.read('../data/short_endpoint.fits')
+        xend = np.array(pkl['xend'])*u.m
+        vend = np.array(pkl['vend'])*u.m/u.s
+        c_end = coord.Galactocentric(x=xend[0], y=xend[1], z=xend[2], v_x=vend[0], v_y=vend[1], v_z=vend[2], **gc_frame_dict)
+        w0_end = gd.PhaseSpacePosition(c_end.transform_to(gc_frame).cartesian)
+        
+        # find gap location at the time of impact
+        Tinit = t_impact - Tgap
+        dt_init = 0.05*u.Myr
+        n_steps = int(Tinit/dt_init)
+        
+        fit_orbit = ham.integrate_orbit(w0_end, dt=-dt_init, n_steps=n_steps)
+        xgap = fit_orbit.pos.get_xyz()[:,-1]
+        vgap = (fit_orbit.vel.get_d_xyz()[:,-1]).to(u.km/u.s)
+        
+        i = np.array([1,0,0], dtype=float)
+        j = np.array([0,1,0], dtype=float)
+        k = np.array([0,0,1], dtype=float)
+        
+        # find positional plane
+        bi = np.cross(j, vgap)
+        bi = bi/np.linalg.norm(bi)
+        bj = np.cross(vgap, bi)
+        bj = bj/np.linalg.norm(bj)
+        
+        b = bx*bi + by*bj
+        xsub = xgap + b
+        
+        # find velocity plane
+        vi = np.cross(vgap, b)
+        vi = vi/np.linalg.norm(vi)
+        vj = np.cross(b, vi)
+        vj = vj/np.linalg.norm(vj)
+        
+        vsub = vx*vi + vy*vj
+        
+        # perturber's orbit
+        c = coord.Galactocentric(x=xsub[0], y=xsub[1], z=xsub[2], v_x=vsub[0], v_y=vsub[1], v_z=vsub[2], **gc_frame_dict)
+        w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+        
+        dt = 0.5*u.Myr
+        n_steps = int(t_impact/dt)
+        
+        orbit_sub = ham.integrate_orbit(w0, dt=dt, n_steps=n_steps)
+        x = orbit_sub.pos.get_xyz()[:,-1]
+        c_now = coord.Galactocentric(x=x[0], y=x[1], z=x[2], **gc_frame_dict)
+        c_icrs = c_now.transform_to(coord.ICRS)
+        
+        #plt.sca(ax[0])
+        #plt.plot(c_icrs.ra.wrap_at(180*u.deg).radian, c_icrs.dec.radian, 'ko', ms=4)
+        if color=='distance':
+            clr = [c_icrs.distance.to(u.kpc).value]
+            vmin = 0
+            vmax = 200
+        elif color=='mass':
+            clr = [np.log10(M.to(u.Msun).value)]
+            vmin = 6.5
+            vmax = 7.5
+        plt.scatter([c_icrs.ra.wrap_at(180*u.deg).radian], [c_icrs.dec.radian], c=clr, s=30, vmin=vmin, vmax=vmax, cmap='magma')
+        #plt.plot(xsub[0], xsub[1], 'ro', ms=4)
+    
+    plt.xlabel('R.A. [deg]')
+    plt.ylabel('Dec [deg]')
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig('../plots/perturber_today_sky_{:s}_N{:04d}.png'.format(color, N), dpi=200)
 
 
