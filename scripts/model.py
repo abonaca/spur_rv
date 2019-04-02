@@ -1400,8 +1400,12 @@ from dynesty import utils as dyfunc
 def nest_corner(label='static'):
     """"""
     results = pickle.load(open('../data/gd1_{:s}.pkl'.format(label), 'rb'))
+
+    # Extract sampling results.
+    samples = results.samples  # samples
+    weights = np.exp(results.logwt - results.logz[-1])  # normalized weights
+
     samples_equal = dyfunc.resample_equal(samples, weights)
-    
     np.savez('../data/gd1_samples_{:s}'.format(label), samples=samples_equal)
     
     plt.close()
