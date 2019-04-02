@@ -1392,7 +1392,21 @@ def prior_transform(u):
     x2 = np.array([1, 50, 50, 400, 400, 8, 30, 9.5])
     
     return (x2 - x1)*u + x1
+
+
+# diagnose nest
+
+def nest_corner(label='static'):
+    """"""
+    results = pickle.load(open('../data/gd1_{:s}.pkl'.format(label), 'rb'))
+    samples_equal = dyfunc.resample_equal(samples, weights)
     
+    np.savez('../data/gd1_samples_{:s}'.format(label), samples=samples_equal)
+    
+    plt.close()
+    corner.corner(samples_equal, bins=70, plot_datapoints=False, smooth=1, show_titles=True)
+
+
 # chain diagnostics
 
 def plot_corner(label='', full=False):
