@@ -1841,6 +1841,7 @@ def perturber_sky(label='', N=10, seed=385761, color='dist'):
     # load perturber properties
     sampler = np.load('../data/thinned{}.npz'.format(label))
     units = [u.Gyr, u.pc, u.pc, u.km/u.s, u.km/u.s, u.Msun, u.pc, u.Myr]
+    print(np.shape(sampler['chain']))
     
     plt.close()
     fig = plt.figure(figsize=(12,8))
@@ -1910,6 +1911,10 @@ def perturber_sky(label='', N=10, seed=385761, color='dist'):
             clr = [np.log10(M.to(u.Msun).value)]
             vmin = 6.5
             vmax = 7.5
+        elif color=='velocity':
+            clr = [np.sqrt(vx**2 + vy**2).to(u.km/u.s).value]
+            vmin = 200
+            vmax = 500
         plt.scatter([c_icrs.ra.wrap_at(180*u.deg).radian], [c_icrs.dec.radian], c=clr, s=30, vmin=vmin, vmax=vmax, cmap='magma')
         #plt.plot(xsub[0], xsub[1], 'ro', ms=4)
     
@@ -1919,5 +1924,76 @@ def perturber_sky(label='', N=10, seed=385761, color='dist'):
     
     plt.tight_layout()
     plt.savefig('../plots/perturber_today_sky_{:s}_N{:04d}.png'.format(color, N), dpi=200)
+
+def perturber_present_table(label=''):
+    """Assemble present-day position of the perturber for every chain element"""
+    
+    # load perturber properties
+    sampler = np.load('../data/thinned{}.npz'.format(label))
+    units = [u.Gyr, u.pc, u.pc, u.km/u.s, u.km/u.s, u.Msun, u.pc, u.Myr]
+    N = np.size(sampler['lnp'])
+    #N = 5
+    tout = Table(names=('x', 'y', 'z', 'vx', 'vy', 'vz'))
+
+    for e in range(N):
+        p = sampler['chain'][e]
+        p[5] = 10**p[5]
+        t_impact, bx, by, vx, vy, M, rs, Tgap = [x*y for x, y in zip(p, units)]
+        
+        # load orbital end point
+        pkl = Table.read('../data/short_endpoint.fits')
+        xend = np.array(pkl['xend'])*u.m
+        vend = np.array(pkl['vend'])*u.m/u.s
+        c_end = coord.Galactocentric(x=xend[0], y=xend[1], z=xend[2], v_x=vend[0], v_y=vend[1], v_z=vend[2], **gc_frame_dict)
+        w0_end = gd.PhaseSpacePosition(c_end.transform_to(gc_frame).cartesian)
+        
+        # find gap location at the time of impact
+        Tinit = t_impact - Tgap
+        dt_init = 0.05*u.Myr
+        n_steps = int(Tinit/dt_init)
+        
+        fit_orbit = ham.integrate_orbit(w0_end, dt=-dt_init, n_steps=n_steps)
+        xgap = fit_orbit.pos.get_xyz()[:,-1]
+        vgap = (fit_orbit.vel.get_d_xyz()[:,-1]).to(u.km/u.s)
+        
+        i = np.array([1,0,0], dtype=float)
+        j = np.array([0,1,0], dtype=float)
+        k = np.array([0,0,1], dtype=float)
+        
+        # find positional plane
+        bi = np.cross(j, vgap)
+        bi = bi/np.linalg.norm(bi)
+        bj = np.cross(vgap, bi)
+        bj = bj/np.linalg.norm(bj)
+        
+        b = bx*bi + by*bj
+        xsub = xgap + b
+        
+        # find velocity plane
+        vi = np.cross(vgap, b)
+        vi = vi/np.linalg.norm(vi)
+        vj = np.cross(b, vi)
+        vj = vj/np.linalg.norm(vj)
+        
+        vsub = vx*vi + vy*vj
+        
+        # perturber's orbit
+        c = coord.Galactocentric(x=xsub[0], y=xsub[1], z=xsub[2], v_x=vsub[0], v_y=vsub[1], v_z=vsub[2], **gc_frame_dict)
+        w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+        
+        dt = 0.5*u.Myr
+        n_steps = int(t_impact/dt)
+        
+        orbit_sub = ham.integrate_orbit(w0, dt=dt, n_steps=n_steps)
+        x_ = orbit_sub.pos.get_xyz()[:,-1].to(u.kpc)
+        v_ = orbit_sub.vel.get_d_xyz()[:,-1].to(u.km/u.s)
+        #c_now = coord.Galactocentric(x=x[0], y=x[1], z=x[2], v_x=v[0], v_y=v[1], v_z=v[2],**gc_frame_dict)
+        #c_icrs = c_now.transform_to(coord.ICRS)
+        x, y, z = x_
+        vx, vy, vz = v_
+        tout.add_row([x, y, z, vx, vy, vz])
+    
+    tout.pprint()
+    tout.write('../data/perturber_now_{:s}.fits'.format(label), overwrite=True)
 
 
