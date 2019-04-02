@@ -1395,6 +1395,7 @@ def prior_transform(u):
 
 
 # diagnose nest
+from dynesty import utils as dyfunc
 
 def nest_corner(label='static'):
     """"""
