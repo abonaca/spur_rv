@@ -1156,6 +1156,7 @@ def vr_median():
     fields = np.unique(t['field'])
     N = np.size(fields)
     phi1 = np.zeros(N)
+    phi2 = np.zeros(N)
     sigma = np.zeros(N)
 
     v_med = np.zeros(N)
@@ -1168,6 +1169,7 @@ def vr_median():
         t_ = t[ind]
         Nstar = len(t_)
         phi1[e] = np.median(t_['phi1'])
+        phi2[e] = np.median(t_['phi2'])
         
         # subtract local gradient
         p = np.polyfit(t_['phi1'], t_['Vrad'], 1, w=t_['std_Vrad']**-1)
@@ -1190,9 +1192,12 @@ def vr_median():
     q = np.polyfit(phi1, v_med, 2, w=v_std**-1)
     qpoly = np.poly1d(q)
     dv_med = v_med - qpoly(phi1)
+    np.save('../data/poly_vr_median', q)
     
     spur = (fields==2) | (fields==4) | (fields==5)
     stream = ~spur
+    
+    np.savez('../data/field_vr_summary', phi1=phi1, phi2=phi2, dv_med=dv_med, v_std=v_std, sigma_med=sigma_med, sigma_std=sigma_std, fields=fields, spur=spur, stream=stream)
     
     spur_global = (t['field']==2) | (t['field']==4) | (t['field']==5)
     stream_global = ~spur_global
