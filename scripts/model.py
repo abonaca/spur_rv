@@ -44,6 +44,25 @@ ham = gp.Hamiltonian(gp.LogarithmicPotential(v_c=225*u.km/u.s, r_h=0*u.kpc, q1=1
 ham_log = gp.Hamiltonian(gp.LogarithmicPotential(v_c=225*u.km/u.s, r_h=0*u.kpc, q1=1, q2=1, q3=1, units=galactic))
 ham_mw = gp.Hamiltonian(gp.load('../../gd1_spur/data/mwpot.yml'))
 
+def stream_extent():
+    """"""
+    g = Table(fits.getdata('/home/ana/projects/GD1-DR2/output/gd1_members.fits'))
+    print(g.colnames)
+    
+    plt.close()
+    plt.figure(figsize=(10,7))
+    
+    #plt.scatter(g['ra'], g['dec'], s=g['pmem']*4, c=g['pmem'], cmap=mpl.cm.binary, vmin=0.5, vmax=1.1, zorder=0, label='')
+    plt.plot(g['ra'], g['dec'], 'k.', ms=1)
+    #plt.ylim(-4,4)
+    plt.gca().set_aspect('equal')
+    plt.gca().invert_xaxis()
+    
+    plt.xlabel('R.A. [deg]')
+    plt.ylabel('Dec [deg]')
+    plt.tight_layout()
+    plt.savefig('../plots/gd1_icrs.png')
+
 def check_vr():
     pkl = pickle.load(open('/home/ana/projects/gd1_spur/data/fiducial_perturb_python3.pkl', 'rb'))
     cg = pkl['cg']
@@ -1377,7 +1396,8 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True):
         sampler.run_nested(dlogz_init=dlogz)
     else:
         label = 'static'
-        sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool, update_interval=600, first_update={'min_ncall': 50000, 'min_eff': 50.})
+        #sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool, update_interval=600, first_update={'min_ncall': 50000, 'min_eff': 50.})
+        sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool)
         sampler.run_nested(dlogz=dlogz)
     
     results = sampler.results
@@ -1385,8 +1405,8 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True):
     
 def prior_transform(u):
     """"""
-    x1 = np.array([0, -100, -100, -500, -500, 5.5, 0, 8])
-    x2 = np.array([3, 100, 100, 500, 500, 8, 100, 10])
+    #x1 = np.array([0, -100, -100, -500, -500, 5.5, 0, 8])
+    #x2 = np.array([3, 100, 100, 500, 500, 8, 100, 10])
     
     x1 = np.array([0, -50, -50, -400, -400, 6, 0, 8.5])
     x2 = np.array([1, 50, 50, 400, 400, 8, 30, 9.5])
@@ -1397,7 +1417,7 @@ def prior_transform(u):
 # diagnose nest
 from dynesty import utils as dyfunc
 
-def nest_corner(label='static'):
+def nest_extract(label='static'):
     """"""
     results = pickle.load(open('../data/gd1_{:s}.pkl'.format(label), 'rb'))
 
@@ -1411,6 +1431,13 @@ def nest_corner(label='static'):
     plt.close()
     corner.corner(samples_equal, bins=70, plot_datapoints=False, smooth=1, show_titles=True)
 
+def nest_corner():
+    """"""
+    s = np.load('../data/gd1_samples_static.npz')
+    samples = s['samples']
+    
+    plt.close()
+    corner.corner(samples, bins=70, plot_datapoints=False, smooth=1, show_titles=True)
 
 # chain diagnostics
 
@@ -1861,11 +1888,18 @@ def perturber_sky(label='', N=10, seed=385761, color='dist'):
     # load perturber properties
     sampler = np.load('../data/thinned{}.npz'.format(label))
     units = [u.Gyr, u.pc, u.pc, u.km/u.s, u.km/u.s, u.Msun, u.pc, u.Myr]
-    print(np.shape(sampler['chain']))
+    #print(np.shape(sampler['chain']))
     
+    tsgr = Table.read('/home/ana/projects/h3/data/SgrTriax_DYN.dat.gz', format='ascii')
+    tsgr = tsgr[::10]
+    #tsgr.pprint()
+    
+    c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc)
+
     plt.close()
     fig = plt.figure(figsize=(12,8))
     ax = fig.add_subplot(111, projection='mollweide')
+    #ax = fig.add_subplot(111)
 
     for i in np.random.randint(0, high=np.size(sampler['lnp']), size=N):
         p = sampler['chain'][i]
@@ -1938,27 +1972,44 @@ def perturber_sky(label='', N=10, seed=385761, color='dist'):
         plt.scatter([c_icrs.ra.wrap_at(180*u.deg).radian], [c_icrs.dec.radian], c=clr, s=30, vmin=vmin, vmax=vmax, cmap='magma')
         #plt.plot(xsub[0], xsub[1], 'ro', ms=4)
     
-    plt.xlabel('R.A. [deg]')
-    plt.ylabel('Dec [deg]')
+    plt.scatter(c_sgr.ra.wrap_at(180*u.deg).radian, c_sgr.dec.radian, color='k', edgecolors='none', s=5, alpha=0.3, zorder=0, rasterized=True)
+    
+    plt.xlabel('R.A. [rad]')
+    plt.ylabel('Dec [rad]')
     plt.grid(True)
     
     plt.tight_layout()
     plt.savefig('../plots/perturber_today_sky_{:s}_N{:04d}.png'.format(color, N), dpi=200)
 
-def perturber_present_table(label=''):
+def perturber_present_table(label='', N=1000, verbose=False, vr=True):
     """Assemble present-day position of the perturber for every chain element"""
     
     # load perturber properties
-    sampler = np.load('../data/thinned{}.npz'.format(label))
+    if vr:
+        sampler = np.load('../data/thinned{}.npz'.format(label))
+        chain = sampler['chain']
+    else:
+        sampler = np.load('../../gd1_spur/data/unique_samples_v500w200.npz')
+        ind = sampler['chain'][:,5]>6.7
+        chain = sampler['chain'][ind]
+        label = 'v500w200'
     units = [u.Gyr, u.pc, u.pc, u.km/u.s, u.km/u.s, u.Msun, u.pc, u.Myr]
-    N = np.size(sampler['lnp'])
+    #N = np.size(sampler['lnp'])
     #N = 5
-    tout = Table(names=('x', 'y', 'z', 'vx', 'vy', 'vz'))
+    tout = Table(names=('x', 'y', 'z', 'vx', 'vy', 'vz', 'Timpact', 'bx', 'by', 'vxsub', 'vysub', 'M', 'rs', 'Tgap'))
+    Ntot = np.shape(chain)[0]
 
-    for e in range(N):
-        p = sampler['chain'][e]
+    #print(np.shape(chain))
+
+#def br():
+    np.random.seed(4385)
+
+    #for e in range(N):
+    for e, ind in enumerate(np.random.randint(0, high=Ntot, size=N)):
+        p = chain[ind]
         p[5] = 10**p[5]
         t_impact, bx, by, vx, vy, M, rs, Tgap = [x*y for x, y in zip(p, units)]
+        if verbose: print(e, p)
         
         # load orbital end point
         pkl = Table.read('../data/short_endpoint.fits')
@@ -2009,11 +2060,89 @@ def perturber_present_table(label=''):
         v_ = orbit_sub.vel.get_d_xyz()[:,-1].to(u.km/u.s)
         #c_now = coord.Galactocentric(x=x[0], y=x[1], z=x[2], v_x=v[0], v_y=v[1], v_z=v[2],**gc_frame_dict)
         #c_icrs = c_now.transform_to(coord.ICRS)
+        vxsub = vx
+        vysub = vy
+        M = np.log10(M.to(u.Msun).value)
         x, y, z = x_
         vx, vy, vz = v_
-        tout.add_row([x, y, z, vx, vy, vz])
+        tout.add_row([x, y, z, vx, vy, vz, t_impact, bx, by, vxsub, vysub, M, rs, Tgap])
     
     tout.pprint()
-    tout.write('../data/perturber_now_{:s}.fits'.format(label), overwrite=True)
+    tout.write('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N), overwrite=True)
 
 
+def present_sgr(label='dvr_lila_v500_w200', N=1000, step=0):
+    """"""
+    
+    t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
+    if N==5000:
+        t = t[:2000]
+    if step>1:
+        ind = np.abs(t['M']-6.9)<0.1
+        t = t[ind]
+    
+    c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+    ceq = c.transform_to(coord.ICRS)
+    
+    tsgr = Table.read('/home/ana/projects/h3/data/SgrTriax_DYN.dat.gz', format='ascii')
+    tsgr = tsgr[::10]
+    c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr)
+    vr = gc.vgsr_to_vhel(c_sgr, tsgr['vgsr']*u.km/u.s)
+    c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr, radial_velocity=vr)
+
+    plt.close()
+    fig = plt.figure(figsize=(12,5.2))
+    ax = fig.add_subplot(111, projection='mollweide')
+    #ax = fig.add_subplot(111)
+    
+    im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=t['M'], zorder=0, s=14, vmin=6.5, vmax=7.5, cmap='magma', label='GD-1 perturber')
+    #im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=ceq.distance.to(u.kpc).value, vmin=10, vmax=100, zorder=0, s=14, cmap='viridis')
+    if step>2:
+        plt.quiver(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, ceq.pm_ra_cosdec.value, ceq.pm_dec.value, color=mpl.cm.magma(0.5), width=1, units='dots', headlength=3, scale_units='inches', scale=3, label='')
+    
+    if step>0:
+        #plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, c=c_sgr.distance.to(u.kpc).value, vmin=10, vmax=100, edgecolors='none', s=5, alpha=1, rasterized=True, label='Sagittarius\nLaw & Majewski (2010)')
+        plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, color='k', edgecolors='none', s=5, alpha=0.3, rasterized=True, label='Sagittarius (LM10)')
+    if step>2:
+        ind = np.abs(tsgr['beta']-14)<0.5
+        plt.quiver(c_sgr.ra.wrap_at(wangle).radian[ind], c_sgr.dec.radian[ind], c_sgr.pm_ra_cosdec.value[ind], c_sgr.pm_dec.value[ind], width=2, units='dots', headlength=3, scale=3, scale_units='inches', alpha=1, label='')
+
+    plt.legend(frameon=True, loc=4, handlelength=0.5)
+    legend = plt.gca().get_legend()
+    legend.legendHandles[0].set_color(plt.cm.magma(0.5))
+    
+    plt.xlabel('R.A. [deg]')
+    plt.ylabel('Dec [deg]')
+    plt.grid(True)
+    
+    plt.tight_layout()
+    
+    ## add custom colorbar
+    ##sm = plt.cm.ScalarMappable(cmap=mpl.cm.viridis, norm=plt.Normalize(vmin=0, vmax=20))
+    #sm = plt.cm.ScalarMappable(cmap=viriwarm, norm=plt.Normalize(vmin=0, vmax=20))
+    ## fake up the array of the scalar mappable. Urgh...
+    #sm._A = []
+    
+    cb = fig.colorbar(im, ax=ax, pad=0.04, aspect=20)
+    cb.set_label('log M$_{perturb}$ / M$_\odot$')
+    
+    plt.savefig('../plots/perturber_today_sgr_{:d}.png'.format(step), dpi=200)
+
+def sgr_clusters():
+    """"""
+    
+    #tgc = Table.read('/home/ana/projects/gd1_spur/data/Baumgardt-globclust.fits')
+    tgc = Table.read('/home/ana/projects/gd1_spur/data/Vasiliev-globclust_space.txt', format='ascii', delimiter=' ', data_start=1)
+    tgc.pprint()
+    print(tgc.colnames)
+    
+    tsgr = Table.read('/home/ana/projects/h3/data/SgrTriax_DYN.dat.gz', format='ascii')
+    tsgr = tsgr[::10]
+    
+    plt.close()
+    plt.figure(figsize=(12,6))
+    
+    plt.plot(tsgr['ra'], tsgr['dec'], 'k.', ms=1)
+    
+    plt.plot(tgc['RA'], tgc['DEC'], 'o', color='orange')
+    plt.quiver(tgc['RA'], tgc['DEC'], tgc['PMRA'], tgc['PMDEC'], color='orange', width=2, units='dots', headlength=3, scale=10, scale_units='inches')
