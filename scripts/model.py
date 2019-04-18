@@ -843,7 +843,7 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
     else:
         return -np.inf
 
-def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb, poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, phi1_list, delta_phi1, mu_vr, sigma_vr, chigap_max, chispur_max):
+def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb, poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, phi1_list, delta_phi1, mu_vr, sigma_vr, fvr, chigap_max, chispur_max):
     """Calculate pseudo-likelihood of a stream==orbit model, evaluating against the gap location & width, spur location & extent, and radial velocity offsets"""
     
     #if (x[0]<0) | (x[0]>14) | (np.sqrt(x[3]**2 + x[4]**2)>500):
@@ -889,6 +889,8 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
         return -1e7
     
     chi_spur = np.sum((cg.phi2[loop_mask].value - f(cg.phi1.wrap_at(wangle).value[loop_mask]))**2/phi2_err**2)/Nloop
+    phi1_max = np.max(cg.phi1.wrap_at(wangle).value[aloop_mask])
+    chi_spur = chi_spur + (phi1_max + 30)**2/(2**2)
     
     # vr chi^2
     chi_vr = 0
@@ -907,13 +909,18 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     model_hat = np.median(h_model[hat_mask])
     if (model_base<Nside_min) | (model_hat>model_base*f_gap):
         return -1e7
-    
     ytop_model = tophat(bc, model_base, model_hat,  gap_position, gap_width)
+    
+    # scale
+    scale_gap = Nstream / 2e3
+    h_model = h_model * scale_gap
+    yerr = np.sqrt(h_model+1) * scale_gap
+    ytop_model = ytop_model * scale_gap
     chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
     
     #print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
     if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
-        return -(chi_gap + chi_spur + chi_vr)
+        return -(chi_gap + chi_spur + fvr*chi_vr)
     else:
         return -1e7
 
@@ -967,6 +974,8 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         #return -np.inf
     
     chi_spur = np.sum((cg.phi2[loop_mask].value - f(cg.phi1.wrap_at(wangle).value[loop_mask]))**2/phi2_err**2)/Nloop
+    phi1_max = np.max(cg.phi1.wrap_at(wangle).value[aloop_mask])
+    chi_spur = chi_spur + (phi1_max + 30)**2/(2**2)
     
     # vr chi^2
     chi_vr = 0
@@ -985,7 +994,6 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     # gap chi^2
     phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
     h_model, be = np.histogram(cg.phi1[phi2_mask].wrap_at(wangle).value, bins=bins)
-    yerr = np.sqrt(h_model+1)
     
     model_base = np.median(h_model[base_mask])
     model_hat = np.median(h_model[hat_mask])
@@ -993,6 +1001,12 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         #return -np.inf
     
     ytop_model = tophat(bc, model_base, model_hat,  gap_position, gap_width)
+    
+    # scale
+    scale_gap = Nstream / 2e3
+    h_model = h_model * scale_gap
+    yerr = np.sqrt(h_model+1) * scale_gap
+    ytop_model = ytop_model * scale_gap
     chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
     
     plt.close()
@@ -1070,8 +1084,8 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     dvr_spur = vr0_ - vr_spur
     #dvr_stream = vr_stream
     #dvr_spur = vr_spur
-    #plt.plot(phi1_list, dvr_stream, 'ko', ms=3)
-    #plt.plot(phi1_list, dvr_spur, 'ro', ms=3)
+    plt.plot(phi1_list, dvr_stream, 'o', color='navy', ms=10)
+    plt.plot(phi1_list, dvr_spur, 'o', color='orangered', ms=10)
     #plt.errorbar(phi1_list.value, dvr_stream.to(u.km/u.s).value, yerr=sigma_vr.to(u.km/u.s).value, fmt='none', color='k')
     #plt.errorbar(phi1_list.value, dvr_spur.to(u.km/u.s).value, yerr=sigma_vr.to(u.km/u.s).value, fmt='none', color='r')
     
@@ -1079,14 +1093,14 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         plt.text(0.95, 0.15, '$\chi^2_{{V_r}}$ = {:.2f}'.format(chi_vr), ha='right', transform=plt.gca().transAxes, fontsize='small')
     plt.xlabel('$\phi_1$ [deg]')
     plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
-    plt.ylim(-3,3)
+    plt.ylim(-6,6)
     plt.xlim(-60,-20)
     #plt.xlim(-37.2,-29)
     
     plt.tight_layout()
     
-    #return fig, ax, chi_gap, chi_spur, chi_vr, np.sum(loop_quadrant), -(chi_gap + chi_spur + chi_vr)
-    return fig
+    return fig, ax, chi_gap, chi_spur, chi_vr, np.sum(loop_quadrant), -(chi_gap + chi_spur + chi_vr)
+    #return fig
 
 def sort_on_runtime(p):
     """Improve runtime by starting longest jobs first (sorts on first parameter -- in our case, the encounter time)"""
@@ -1096,7 +1110,7 @@ def sort_on_runtime(p):
     
     return p[idx], idx
 
-def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=1, test=False):
+def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=1, Nstream=2000, test=False, graph=False):
     """"""
     
     pkl = Table.read('../data/gap_present.fits')
@@ -1117,7 +1131,6 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     #Tgap = 29.176*u.Myr
     Tstream = 16*u.Myr
     Tgap = 9.176*u.Myr
-    Nstream = 2000
     N2 = int(Nstream*0.5)
     dt_stream = Tstream/Nstream
     dt_fine = 0.05*u.Myr
@@ -1255,15 +1268,17 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
         
         for i in range(N):
             args = copy.deepcopy(lnprob_args[:])
-            lnp[i] = lnprob(p0[i], *args)
-
-            #print(p0[i])
-            #fig, ax, chi_gap, chi_spur, chi_vr, N, lnp[i] = lnprob_verbose(p0[i], *args)
-            #plt.suptitle('  '.join(['{:.2g} {}'.format(x_, u_) for x_, u_ in zip(p0[i],params_units)]), fontsize='medium')
-            #plt.tight_layout(rect=[0,0,1,0.96])
-            #plt.savefig('../plots/model_diag/runinit_{:03d}.png'.format(i))
+            print(p0[i])
+            if not graph:
+                lnp[i] = lnprob(p0[i], *args)
+            else:
+                fig, ax, chi_gap, chi_spur, chi_vr, N, lnp[i] = lnprob_verbose(p0[i], *args)
+                plt.suptitle('  '.join(['{:.2g} {}'.format(x_, u_) for x_, u_ in zip(p0[i],params_units)]), fontsize='medium')
+                plt.tight_layout(rect=[0,0,1,0.96])
+                plt.savefig('../plots/model_diag/runinit_{:03d}.png'.format(i))
         
         print(lnp)
+        print(np.median(lnp), np.std(lnp))
         print(N, np.sum(np.isfinite(lnp)))
         
         return
@@ -1290,7 +1305,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
 
 
 # nested sampling
-def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', Nstream=2000):
+def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', Nstream=2000, fvr=1):
     """"""
     pkl = Table.read('../data/gap_present.fits')
     xunit = pkl['x_gap'].unit
@@ -1400,7 +1415,7 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', Nstrea
     model_args = [params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb]
     gap_args = [poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width]
     spur_args = [N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad]
-    vr_args = [phi1_list, delta_phi1, mu_vr, sigma_vr]
+    vr_args = [phi1_list, delta_phi1, mu_vr, sigma_vr, fvr]
     lnp_args = [chigap_max, chispur_max]
     lnprob_args = model_args + gap_args + spur_args + vr_args + lnp_args
     
@@ -1420,7 +1435,7 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', Nstrea
         sampler.run_nested(dlogz=dlogz)
     
     results = sampler.results
-    pickle.dump(results, open('../data/gd1_{:s}_{:s}_N{:d}.pkl'.format(label, sampling, Nstream),'wb'))
+    pickle.dump(results, open('../data/gd1_{:s}_{:s}_N{:d}_v{:1.0f}.pkl'.format(label, sampling, Nstream, vr),'wb'))
     
 def prior_transform(u):
     """"""
