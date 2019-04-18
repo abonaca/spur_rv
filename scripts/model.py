@@ -1270,7 +1270,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
 
 
 # nested sampling
-def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True):
+def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif'):
     """"""
     pkl = Table.read('../data/gap_present.fits')
     xunit = pkl['x_gap'].unit
@@ -1397,11 +1397,11 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True):
     else:
         label = 'static'
         #sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool, update_interval=600, first_update={'min_ncall': 50000, 'min_eff': 50.})
-        sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool)
+        sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool, sample=sampling)
         sampler.run_nested(dlogz=dlogz)
     
     results = sampler.results
-    pickle.dump(results, open('../data/gd1_{:s}.pkl'.format(label),'wb'))
+    pickle.dump(results, open('../data/gd1_{:s}_{:s}.pkl'.format(label, sampling),'wb'))
     
 def prior_transform(u):
     """"""
