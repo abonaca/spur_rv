@@ -46,7 +46,8 @@ ham_mw = gp.Hamiltonian(gp.load('../../gd1_spur/data/mwpot.yml'))
 
 def stream_extent():
     """"""
-    g = Table(fits.getdata('/home/ana/projects/GD1-DR2/output/gd1_members.fits'))
+    #g = Table(fits.getdata('/home/ana/projects/GD1-DR2/output/gd1_members.fits'))
+    g = Table(fits.getdata('../data/gd1-better-selection.fits'))
     print(g.colnames)
     
     plt.close()
@@ -62,6 +63,25 @@ def stream_extent():
     plt.ylabel('Dec [deg]')
     plt.tight_layout()
     plt.savefig('../plots/gd1_icrs.png')
+
+def stream_coords():
+    """"""
+    g = Table(fits.getdata('../data/gd1-better-selection.fits'))
+    print(g.colnames)
+    
+    plt.close()
+    plt.figure(figsize=(15,5))
+    
+    #plt.scatter(g['ra'], g['dec'], s=g['pmem']*4, c=g['pmem'], cmap=mpl.cm.binary, vmin=0.5, vmax=1.1, zorder=0, label='')
+    plt.plot(g['phi1'], g['phi2'], 'k.', ms=3)
+    #plt.ylim(-4,4)
+    plt.xlim(-100,20)
+    plt.gca().set_aspect('equal')
+    
+    plt.xlabel('R.A. [deg]')
+    plt.ylabel('Dec [deg]')
+    plt.tight_layout()
+    plt.savefig('../plots/gd1_native.png')
 
 def check_vr():
     pkl = pickle.load(open('/home/ana/projects/gd1_spur/data/fiducial_perturb_python3.pkl', 'rb'))
