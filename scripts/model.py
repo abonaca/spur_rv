@@ -1290,7 +1290,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
 
 
 # nested sampling
-def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif'):
+def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', Nstream=2000):
     """"""
     pkl = Table.read('../data/gap_present.fits')
     xunit = pkl['x_gap'].unit
@@ -1310,7 +1310,6 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif'):
     #Tgap = 29.176*u.Myr
     Tstream = 16*u.Myr
     Tgap = 9.176*u.Myr
-    Nstream = 2000
     N2 = int(Nstream*0.5)
     dt_stream = Tstream/Nstream
     dt_fine = 0.05*u.Myr
@@ -1421,7 +1420,7 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif'):
         sampler.run_nested(dlogz=dlogz)
     
     results = sampler.results
-    pickle.dump(results, open('../data/gd1_{:s}_{:s}.pkl'.format(label, sampling),'wb'))
+    pickle.dump(results, open('../data/gd1_{:s}_{:s}_N{:d}.pkl'.format(label, sampling, Nstream),'wb'))
     
 def prior_transform(u):
     """"""
