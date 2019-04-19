@@ -894,11 +894,11 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     
     # vr chi^2
     #print(phi1_list)
-    if np.max(cg.phi1.wrap_at(wangle)[aloop_mask])<phi1_list[-1]:
+    indmin = 0
+    indmax = np.argmax(cg.phi1.wrap_at(wangle).value[aloop_mask])
+    if (np.max(cg.phi1.wrap_at(wangle)[aloop_mask])<phi1_list[-1]) | (indmin>=indmax):
         return -1e7
     else:
-        indmin = 0
-        indmax = np.argmax(cg.phi1.wrap_at(wangle).value[aloop_mask])
         vr_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.radial_velocity.to(u.km/u.s)[aloop_mask][indmin:indmax])*u.km/u.s
         isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
         vr_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
