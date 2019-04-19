@@ -936,7 +936,7 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     
     #print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
     if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
-        return -(chi_gap + chi_spur + fvr*chi_vr)
+        return -0.5*(chi_gap + chi_spur + fvr*chi_vr)
     else:
         return -1e7
 
@@ -1485,8 +1485,8 @@ def prior_transform(u):
     x1 = np.array([0, -50, -50, -400, -400, 6, 0, 8.5])
     x2 = np.array([1, 50, 50, 400, 400, 8, 30, 9.5])
     
-    x1 = np.array([0, 0, 0, 175, 0, 6, 0, 8.5])
-    x2 = np.array([1, 30, 2*np.pi, 225, 2*np.pi, 7, 10, 9.5])
+    x1 = np.array([0.2, 10, 0, 175, 0, 6, 2, 8.5])
+    x2 = np.array([0.7, 20, 2*np.pi, 225, 2*np.pi, 7, 8, 9.5])
     
     return (x2 - x1)*u + x1
 
