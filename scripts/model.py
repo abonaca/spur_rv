@@ -1459,7 +1459,7 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', Nstrea
         sampler.run_nested(dlogz=dlogz)
     
     results = sampler.results
-    pickle.dump(results, open('../data/gd1_{:s}_{:s}_N{:d}_v{:1.0f}.pkl'.format(label, sampling, Nstream, vr),'wb'))
+    pickle.dump(results, open('../data/gd1_{:s}_{:s}_N{:d}_v{:.1f}.pkl'.format(label, sampling, Nstream, vr),'wb'))
     
 def prior_transform(u):
     """"""
