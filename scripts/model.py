@@ -893,12 +893,16 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     chi_spur = chi_spur + (phi1_max + 30)**2/(2**2)
     
     # vr chi^2
-    indmin = 0
-    indmax = np.argmax(cg.phi1.wrap_at(wangle).value[aloop_mask])
-    vr_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.radial_velocity.to(u.km/u.s)[aloop_mask][indmin:indmax])*u.km/u.s
-    isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
-    vr_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
-    chi_vr = np.sum((vr_spur - vr_stream)**2/sigma_vr**2)
+    #print(phi1_list)
+    if np.max(cg.phi1.wrap_at(wangle)[aloop_mask])<phi1_list[-1]:
+        return -1e7
+    else:
+        indmin = 0
+        indmax = np.argmax(cg.phi1.wrap_at(wangle).value[aloop_mask])
+        vr_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.radial_velocity.to(u.km/u.s)[aloop_mask][indmin:indmax])*u.km/u.s
+        isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
+        vr_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
+        chi_vr = np.sum((vr_spur - vr_stream)**2/sigma_vr**2)
     
     #chi_vr = 0
     #for e, phi in enumerate(phi1_list):
@@ -1198,6 +1202,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     delta_phi1 = 1.5*u.deg
     mu_vr = pkl['mu_vr']
     sigma_vr = pkl['sigma_vr']
+    fvr = 1
 
     # tighten likelihood
     #delta_phi2 = 0.1
@@ -1255,7 +1260,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     model_args = [params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb]
     gap_args = [poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width]
     spur_args = [N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad]
-    vr_args = [phi1_list, delta_phi1, mu_vr, sigma_vr]
+    vr_args = [phi1_list, delta_phi1, mu_vr, sigma_vr, fvr]
     lnp_args = [chigap_max, chispur_max]
     lnprob_args = model_args + gap_args + spur_args + vr_args + lnp_args
     
@@ -1289,7 +1294,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
             args = copy.deepcopy(lnprob_args[:])
             print(p0[i])
             if not graph:
-                lnp[i] = lnprob(p0[i], *args)
+                lnp[i] = lnprob_nest(p0[i], *args)
             else:
                 fig, ax, chi_gap, chi_spur, chi_vr, N, lnp[i] = lnprob_verbose(p0[i], *args)
                 plt.suptitle('  '.join(['{:.2g} {}'.format(x_, u_) for x_, u_ in zip(p0[i],params_units)]), fontsize='medium')
