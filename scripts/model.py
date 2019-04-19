@@ -936,7 +936,7 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     
     #print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
     if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
-        return -0.5*(chi_gap + chi_spur + fvr*chi_vr)
+        return -(chi_gap + chi_spur + fvr*chi_vr)**0.5
     else:
         return -1e7
 
