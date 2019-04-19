@@ -893,12 +893,18 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     chi_spur = chi_spur + (phi1_max + 30)**2/(2**2)
     
     # vr chi^2
-    chi_vr = 0
-    for e, phi in enumerate(phi1_list):
-        ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi) < delta_phi1
-        #print(np.median(cg.radial_velocity[ind_phi & loop_mask]), np.median(cg.radial_velocity[ind_phi & ~loop_mask]))
-        #chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
-        chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - np.median(cg.radial_velocity[ind_phi & ~aloop_mask]))**2*sigma_vr[e]**-2
+    indmin = 0
+    indmax = np.argmax(cg.phi1.wrap_at(wangle).value[aloop_mask])
+    vr_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.radial_velocity.to(u.km/u.s)[aloop_mask][indmin:indmax])*u.km/u.s
+    vr_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
+    chi_vr = np.sum((vr_spur - vr_stream)**2/sigma_vr**2)
+    
+    #chi_vr = 0
+    #for e, phi in enumerate(phi1_list):
+        #ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi) < delta_phi1
+        ##print(np.median(cg.radial_velocity[ind_phi & loop_mask]), np.median(cg.radial_velocity[ind_phi & ~loop_mask]))
+        ##chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
+        #chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - np.median(cg.radial_velocity[ind_phi & ~aloop_mask]))**2*sigma_vr[e]**-2
     
     # gap chi^2
     phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
@@ -987,8 +993,8 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         #print(np.median(cg.radial_velocity[ind_phi & aloop_mask]), np.median(cg.radial_velocity[ind_phi & ~aloop_mask]))
         #print(np.median(cg.radial_velocity[ind_phi & aloop_mask]), mu_vr[e])
         #chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
-        vr_stream[e] = np.median(cg.radial_velocity[ind_phi & aloop_mask])
-        vr_spur[e] = np.median(cg.radial_velocity[ind_phi & ~aloop_mask])
+        vr_stream[e] = np.median(cg.radial_velocity[ind_phi & ~aloop_mask])
+        vr_spur[e] = np.median(cg.radial_velocity[ind_phi & aloop_mask])
         chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - np.median(cg.radial_velocity[ind_phi & ~aloop_mask]))**2*sigma_vr[e]**-2
     
     # gap chi^2
@@ -1077,8 +1083,15 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         #ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi1_list[0]) < delta_phi1
         #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & aloop_mask], dvr[ind_phi & aloop_mask], 'ro')
         #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & ~aloop_mask], dvr[ind_phi & ~aloop_mask], 'ko')
-        
     
+    indmin = 0
+    indmax = np.argmax(cg.phi1.wrap_at(wangle).value[aloop_mask])
+    vr_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.radial_velocity.to(u.km/u.s)[aloop_mask][indmin:indmax])*u.km/u.s
+    vr_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
+    chi_vr = np.sum((vr_spur - vr_stream)**2/sigma_vr**2)
+    
+    #plt.plot(cg.phi1.wrap_at(wangle).value[aloop_mask][indmin], dvr[aloop_mask][indmin], 'r*', ms=20)
+    #plt.plot(cg.phi1.wrap_at(wangle).value[aloop_mask][indmax], dvr[aloop_mask][indmax], 'r*', ms=20)
     vr0_ = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
     dvr_stream = vr0_ - vr_stream
     dvr_spur = vr0_ - vr_spur
@@ -1089,11 +1102,16 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     #plt.errorbar(phi1_list.value, dvr_stream.to(u.km/u.s).value, yerr=sigma_vr.to(u.km/u.s).value, fmt='none', color='k')
     #plt.errorbar(phi1_list.value, dvr_spur.to(u.km/u.s).value, yerr=sigma_vr.to(u.km/u.s).value, fmt='none', color='r')
     
+    #plt.plot(cg.phi1.wrap_at(wangle).value, vr0 - dvr, 'o', color=colors[0])
+    #plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], vr0[loop_mask] - dvr[loop_mask], 'o', color=colors[1])
+    #plt.plot(phi1_list, vr_stream, 'o', color='navy', ms=10)
+    #plt.plot(phi1_list, vr_spur, 'o', color='orangered', ms=10)
+    
     if chi_label:
         plt.text(0.95, 0.15, '$\chi^2_{{V_r}}$ = {:.2f}'.format(chi_vr), ha='right', transform=plt.gca().transAxes, fontsize='small')
     plt.xlabel('$\phi_1$ [deg]')
     plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
-    plt.ylim(-6,6)
+    plt.ylim(-3,3)
     plt.xlim(-60,-20)
     #plt.xlim(-37.2,-29)
     
