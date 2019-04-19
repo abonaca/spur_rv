@@ -936,7 +936,7 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     
     #print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
     if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
-        return -(chi_gap + chi_spur + fvr*chi_vr)**0.5
+        return -(chi_gap + chi_spur + fvr*chi_vr)**0.2
     else:
         return -1e7
 
@@ -1496,11 +1496,15 @@ from dynesty import utils as dyfunc
 
 def nest_extract(label='static'):
     """"""
-    results = pickle.load(open('../data/gd1_{:s}.pkl'.format(label), 'rb'))
+    #results = pickle.load(open('../data/gd1_{:s}.pkl'.format(label), 'rb'), encoding='bytes')
+    results = pickle.load(open('../data/gd1_static_unif_multi_N1000_v0.0.pkl', 'rb'), encoding='bytes')
+    #results = pickle.load(open('../data/gd1_static_unif_multi_N1000_v0.0.pkl3', 'rb'))
+    #print(results.keys())
+    print(results[b'samples'])
 
     # Extract sampling results.
-    samples = results.samples  # samples
-    weights = np.exp(results.logwt - results.logz[-1])  # normalized weights
+    samples = results[b'samples']  # samples
+    weights = np.exp(results[b'logwt'] - results[b'logz'][-1])  # normalized weights
 
     samples_equal = dyfunc.resample_equal(samples, weights)
     np.savez('../data/gd1_samples_{:s}'.format(label), samples=samples_equal)
@@ -1508,13 +1512,23 @@ def nest_extract(label='static'):
     plt.close()
     corner.corner(samples_equal, bins=70, plot_datapoints=False, smooth=1, show_titles=True)
 
+def nest_reload():
+    """"""
+    res = pickle.load(open('../data/gd1_static_unif_multi_N1000_v0.0.pkl', 'rb'), encoding='bytes')
+    print(res.keys())
+    pickle.dump(res, open('../data/gd1_static_unif_multi_N1000_v0.0.pkl3', 'wb'))
+
 def nest_corner():
     """"""
     s = np.load('../data/gd1_samples_static.npz')
     samples = s['samples']
     
+    labels = ['t_impact', 'b', 'bphi', 'v', 'vphi', 'M', 'rs', 'Tgap']
+    
     plt.close()
-    corner.corner(samples, bins=70, plot_datapoints=False, smooth=1, show_titles=True)
+    corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, show_titles=True, labels=labels)
+    
+    plt.tight_layout(h_pad=0, w_pad=0)
 
 # chain diagnostics
 
