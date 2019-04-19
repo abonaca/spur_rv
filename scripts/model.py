@@ -847,8 +847,8 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     """Calculate pseudo-likelihood of a stream==orbit model, evaluating against the gap location & width, spur location & extent, and radial velocity offsets"""
     
     #if (x[0]<0) | (x[0]>14) | (np.sqrt(x[3]**2 + x[4]**2)>500):
-    if (np.sqrt(x[3]**2 + x[4]**2)>500):
-        return -1e7
+    #if (np.sqrt(x[3]**2 + x[4]**2)>500):
+        #return -1e7
     
     x[5] = 10**x[5]
     params = [x_*u_ for x_, u_ in zip(x, params_units)]
@@ -856,7 +856,12 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
         t_impact, bx, by, vx, vy, M, Tgap = params
         par_perturb = np.array([M.si.value, 0., 0., 0.])
     else:
-        t_impact, bx, by, vx, vy, M, rs, Tgap = params
+        #t_impact, bx, by, vx, vy, M, rs, Tgap = params
+        t_impact, b, bphi, v, vphi, M, rs, Tgap = params
+        bx = b*np.cos(bphi)
+        by = b*np.sin(bphi)
+        vx = v*np.cos(vphi)
+        vy = v*np.sin(vphi)
         par_perturb = np.array([M.to(u.kg).value, rs.to(u.m).value, 0., 0., 0.])
         if x[6]<0:
             return -1e7
@@ -949,7 +954,12 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         t_impact, bx, by, vx, vy, M, Tgap = params
         par_perturb = np.array([M.si.value, 0., 0., 0.])
     else:
-        t_impact, bx, by, vx, vy, M, rs, Tgap = params
+        #t_impact, bx, by, vx, vy, M, rs, Tgap = params
+        t_impact, b, bphi, v, vphi, M, rs, Tgap = params
+        bx = b*np.cos(bphi)
+        by = b*np.sin(bphi)
+        vx = v*np.cos(vphi)
+        vy = v*np.sin(vphi)
         par_perturb = np.array([M.to(u.kg).value, rs.to(u.m).value, 0., 0., 0.])
         if x[6]<0:
             return -np.inf
@@ -989,18 +999,16 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     chi_spur = chi_spur + (phi1_max + 30)**2/(2**2)
     
     # vr chi^2
-    chi_vr = 0
-    Nlist = np.size(phi1_list)
-    vr_stream = np.zeros(Nlist)*u.km/u.s
-    vr_spur = np.zeros(Nlist)*u.km/u.s
-    for e, phi in enumerate(phi1_list[:]):
-        ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi) < delta_phi1
-        #print(np.median(cg.radial_velocity[ind_phi & aloop_mask]), np.median(cg.radial_velocity[ind_phi & ~aloop_mask]))
-        #print(np.median(cg.radial_velocity[ind_phi & aloop_mask]), mu_vr[e])
-        #chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - mu_vr[e])**2*sigma_vr[e]**-2
-        vr_stream[e] = np.median(cg.radial_velocity[ind_phi & ~aloop_mask])
-        vr_spur[e] = np.median(cg.radial_velocity[ind_phi & aloop_mask])
-        chi_vr += (np.median(cg.radial_velocity[ind_phi & aloop_mask]) - np.median(cg.radial_velocity[ind_phi & ~aloop_mask]))**2*sigma_vr[e]**-2
+    #print(phi1_list)
+    indmin = 0
+    indmax = np.argmax(cg.phi1.wrap_at(wangle).value[aloop_mask])
+    if (np.max(cg.phi1.wrap_at(wangle)[aloop_mask])<phi1_list[-1]) | (indmin>=indmax):
+        return -1e7
+    else:
+        vr_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.radial_velocity.to(u.km/u.s)[aloop_mask][indmin:indmax])*u.km/u.s
+        isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
+        vr_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
+        chi_vr = np.sum((vr_spur - vr_stream)**2/sigma_vr**2)
     
     # gap chi^2
     phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
@@ -1088,12 +1096,6 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         #ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi1_list[0]) < delta_phi1
         #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & aloop_mask], dvr[ind_phi & aloop_mask], 'ro')
         #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & ~aloop_mask], dvr[ind_phi & ~aloop_mask], 'ko')
-    
-    indmin = 0
-    indmax = np.argmax(cg.phi1.wrap_at(wangle).value[aloop_mask])
-    vr_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.radial_velocity.to(u.km/u.s)[aloop_mask][indmin:indmax])*u.km/u.s
-    vr_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
-    chi_vr = np.sum((vr_spur - vr_stream)**2/sigma_vr**2)
     
     #plt.plot(cg.phi1.wrap_at(wangle).value[aloop_mask][indmin], dvr[aloop_mask][indmin], 'r*', ms=20)
     #plt.plot(cg.phi1.wrap_at(wangle).value[aloop_mask][indmax], dvr[aloop_mask][indmax], 'r*', ms=20)
@@ -1248,11 +1250,19 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     by = -3.3*u.pc
     vx = 240*u.km/u.s
     vy = 17*u.km/u.s
+    b = 20*u.pc
+    bphi = 0.1*u.rad
+    v = 200*u.km/u.s
+    vphi = 0.2*u.rad
 
+    potential_perturb = 2
     if potential_perturb==1:
-        params_list = [t_impact, bx, by, vx, vy, M, Tgap]
+        #params_list = [t_impact, bx, by, vx, vy, M, Tgap]
+        params_list = [t_impact, b, bphi, v, vphi, M, Tgap]
     elif potential_perturb==2:
-        params_list = [t_impact, bx, by, vx, vy, M, rs, Tgap]
+        #params_list = [t_impact, bx, by, vx, vy, M, rs, Tgap]
+        params_list = [t_impact, b, bphi, v, vphi, M, rs, Tgap]
+
     params_units = [p_.unit for p_ in params_list]
     params = [p_.value for p_ in params_list]
     params[5] = np.log10(params[5])
@@ -1426,12 +1436,18 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', bound=
     by = -3.3*u.pc
     vx = 240*u.km/u.s
     vy = 17*u.km/u.s
+    b = 20*u.pc
+    bphi = 0.1*u.rad
+    v = 200*u.km/u.s
+    vphi = 0.2*u.rad
 
     potential_perturb = 2
     if potential_perturb==1:
-        params_list = [t_impact, bx, by, vx, vy, M, Tgap]
+        #params_list = [t_impact, bx, by, vx, vy, M, Tgap]
+        params_list = [t_impact, b, bphi, v, vphi, M, Tgap]
     elif potential_perturb==2:
-        params_list = [t_impact, bx, by, vx, vy, M, rs, Tgap]
+        #params_list = [t_impact, bx, by, vx, vy, M, rs, Tgap]
+        params_list = [t_impact, b, bphi, v, vphi, M, rs, Tgap]
     params_units = [p_.unit for p_ in params_list]
     params = [p_.value for p_ in params_list]
     params[5] = np.log10(params[5])
@@ -1469,8 +1485,8 @@ def prior_transform(u):
     x1 = np.array([0, -50, -50, -400, -400, 6, 0, 8.5])
     x2 = np.array([1, 50, 50, 400, 400, 8, 30, 9.5])
     
-    x1 = np.array([0, -30, -30, -300, -300, 6, 0, 8.5])
-    x2 = np.array([1, 30, 30, 300, 300, 7, 10, 9.5])
+    x1 = np.array([0, 0, 0, 100, 0, 6, 0, 8.5])
+    x2 = np.array([1, 30, 2*np.pi, 300, 2*np.pi, 7, 10, 9.5])
     
     return (x2 - x1)*u + x1
 
