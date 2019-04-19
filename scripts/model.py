@@ -1202,7 +1202,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
     delta_phi1 = 1.5*u.deg
     mu_vr = pkl['mu_vr']
     sigma_vr = pkl['sigma_vr']
-    fvr = 1
+    fvr = 0.5
 
     # tighten likelihood
     #delta_phi2 = 0.1
@@ -1329,7 +1329,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
 
 
 # nested sampling
-def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', Nstream=2000, fvr=1):
+def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', bound='multi', Nstream=2000, fvr=1):
     """"""
     pkl = Table.read('../data/gap_present.fits')
     xunit = pkl['x_gap'].unit
@@ -1455,11 +1455,11 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', Nstrea
     else:
         label = 'static'
         #sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool, update_interval=600, first_update={'min_ncall': 50000, 'min_eff': 50.})
-        sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool, sample=sampling)
+        sampler = dynesty.NestedSampler(lnprob_nest, prior_transform, ndim, nlive=nlive, logl_args=lnprob_args, queue_size=nth, pool=pool, sample=sampling, bound=bound)
         sampler.run_nested(dlogz=dlogz)
     
     results = sampler.results
-    pickle.dump(results, open('../data/gd1_{:s}_{:s}_N{:d}_v{:.1f}.pkl'.format(label, sampling, Nstream, vr),'wb'))
+    pickle.dump(results, open('../data/gd1_{:s}_{:s}_{:s}_N{:d}_v{:.1f}.pkl'.format(label, sampling, bound, Nstream, vr),'wb'))
     
 def prior_transform(u):
     """"""
