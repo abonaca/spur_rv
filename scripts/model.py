@@ -1488,8 +1488,8 @@ def prior_transform(u):
     #x1 = np.array([0.2, 10, 0, 175, 0, 6, 2, 8.5])
     #x2 = np.array([0.7, 20, 2*np.pi, 225, 2*np.pi, 7, 8, 9.5])
     
-    x1 = np.array([0, 0, 0, 0, 0, 5, 0, 0])
-    x2 = np.array([5, 50, 2*np.pi, 400, 2*np.pi, 8, 100, 16])
+    x1 = np.array([0, 0, 0, 0, 0, 5, 0, 7])
+    x2 = np.array([4, 50, 2*np.pi, 400, 2*np.pi, 8, 50, 11])
     
     
     return (x2 - x1)*u + x1
@@ -1528,12 +1528,13 @@ def nest_corner(fvr=0):
     #samples[:,5] = np.log10(samples[:,5])
     
     labels = ['$T_{impact}$ [Gyr]', 'b [pc]', 'b$_\phi$ [rad]', 'V [km s$^{-1}$]', 'V$_\phi$ [rad]', 'log M/M$_\odot$', 'r$_s$ [pc]', 'T$_{gap}$ [Myr]']
+    limits = [[0,2], [0,50], [0,2*np.pi], [0,400], [0,2*np.pi], [5,8], [0,20], [8.5,9.5]]
     
     plt.close()
-    corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
+    corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, range=limits, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
     
     plt.tight_layout(h_pad=0, w_pad=0)
-    plt.savefig('../plots/dycorner_static_vr{:.1f}.png'.format(fvr), dpi=200)
+    plt.savefig('../plots/dycorner_static_vr{:.1f}.png'.format(fvr))
 
 # chain diagnostics
 
