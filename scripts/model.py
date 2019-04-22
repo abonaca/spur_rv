@@ -1498,10 +1498,10 @@ def prior_transform(u):
 # diagnose nest
 from dynesty import utils as dyfunc
 
-def nest_extract(label='static'):
+def nest_extract(label='static', fvr=0):
     """"""
     #results = pickle.load(open('../data/gd1_{:s}.pkl'.format(label), 'rb'), encoding='bytes')
-    results = pickle.load(open('../data/gd1_static_unif_multi_N1000_v0.0.pkl', 'rb'), encoding='bytes')
+    results = pickle.load(open('../data/gd1_static_unif_multi_N1000_v{:.1f}.pkl'.format(fvr), 'rb'), encoding='bytes')
     #results = pickle.load(open('../data/gd1_static_unif_multi_N1000_v0.0.pkl3', 'rb'))
     #print(results.keys())
 
@@ -1510,7 +1510,7 @@ def nest_extract(label='static'):
     weights = np.exp(results[b'logwt'] - results[b'logz'][-1])  # normalized weights
 
     samples_equal = dyfunc.resample_equal(samples, weights)
-    np.savez('../data/gd1_samples_{:s}'.format(label), samples=samples_equal)
+    np.savez('../data/gd1_samples_{:s}_vr{:.1f}'.format(label, fvr), samples=samples_equal)
     
     #plt.close()
     #corner.corner(samples_equal, bins=70, plot_datapoints=False, smooth=1, show_titles=True)
@@ -1521,17 +1521,19 @@ def nest_reload():
     print(res.keys())
     pickle.dump(res, open('../data/gd1_static_unif_multi_N1000_v0.0.pkl3', 'wb'))
 
-def nest_corner():
+def nest_corner(fvr=0):
     """"""
-    s = np.load('../data/gd1_samples_static.npz')
+    s = np.load('../data/gd1_samples_static_vr{:.1f}.npz'.format(fvr))
     samples = s['samples']
+    #samples[:,5] = np.log10(samples[:,5])
     
-    labels = ['t_impact', 'b', 'bphi', 'v', 'vphi', 'M', 'rs', 'Tgap']
+    labels = ['$T_{impact}$ [Gyr]', 'b [pc]', 'b$_\phi$ [rad]', 'V [km s$^{-1}$]', 'V$_\phi$ [rad]', 'log M/M$_\odot$', 'r$_s$ [pc]', 'T$_{gap}$ [Myr]']
     
     plt.close()
-    corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, show_titles=True, labels=labels)
+    corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
     
     plt.tight_layout(h_pad=0, w_pad=0)
+    plt.savefig('../plots/dycorner_static_vr{:.1f}.png'.format(fvr), dpi=200)
 
 # chain diagnostics
 
