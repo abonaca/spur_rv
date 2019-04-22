@@ -1488,8 +1488,8 @@ def prior_transform(u):
     #x1 = np.array([0.2, 10, 0, 175, 0, 6, 2, 8.5])
     #x2 = np.array([0.7, 20, 2*np.pi, 225, 2*np.pi, 7, 8, 9.5])
     
-    x1 = np.array([0, 0, 0, 0, 0, 5, 0, 8.5])
-    x2 = np.array([2, 50, 2*np.pi, 400, 2*np.pi, 8, 20, 9.5])
+    x1 = np.array([0, 0, 0, 0, 0, 5, 0, 0])
+    x2 = np.array([5, 50, 2*np.pi, 400, 2*np.pi, 8, 100, 16])
     
     
     return (x2 - x1)*u + x1
