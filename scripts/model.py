@@ -1408,13 +1408,14 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', bound=
     mu_vr = pkl['mu_vr']
     sigma_vr = pkl['sigma_vr']
 
-    # tighten likelihood
-    #delta_phi2 = 0.1
-    phi2_err = 0.15
-    percentile1 = 1
-    percentile2 = 90
-    delta_phi1 = 0.3*u.deg
-    sigma_vr = np.array([0.15, 0.15])*u.km/u.s
+    ## tighten likelihood
+    ##delta_phi2 = 0.1
+    #phi2_err = 0.15
+    #percentile1 = 1
+    #percentile2 = 90
+    #delta_phi1 = 0.3*u.deg
+    #sigma_vr = np.array([0.15, 0.15])*u.km/u.s
+    ##sigma_vr = np.array([1, 1])*u.km/u.s
     
     potential = 3
     Vh = 225*u.km/u.s
