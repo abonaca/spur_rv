@@ -1489,8 +1489,8 @@ def prior_transform(u):
     #x2 = np.array([0.7, 20, 2*np.pi, 225, 2*np.pi, 7, 8, 9.5])
     
     # fiducial
-    x1 = np.array([0, 0, 0, 0, 0, 5, 0, 7.5])
-    x2 = np.array([3, 50, 2*np.pi, 400, 2*np.pi, 8, 30, 10.5])
+    x1 = np.array([0.2, 0, 0, 0, 0, 5, 0, 7.5])
+    x2 = np.array([0.7, 50, 2*np.pi, 400, 2*np.pi, 8, 30, 10.5])
     
     ## narrow
     #x1 = np.array([0.2, 10, 0, 175, 0, 6, 5, 8.5])
@@ -1543,7 +1543,7 @@ def nest_corner(fvr=0):
     #corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, range=limits, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
     
     plt.tight_layout(h_pad=0, w_pad=0)
-    #plt.savefig('../plots/dycorner_static_vr{:.1f}.png'.format(fvr))
+    plt.savefig('../plots/dycorner_static_lnl_vr{:.1f}.png'.format(fvr))
 
 def nest_perturber_present_table(N=1000, verbose=False, fvr=0):
     """Assemble present-day position of the perturber for every chain element"""
@@ -1552,8 +1552,8 @@ def nest_perturber_present_table(N=1000, verbose=False, fvr=0):
     # load perturber properties
     s = np.load('../data/gd1_samples_static_vr{:.1f}.npz'.format(fvr))
     chain = s['samples']
-    #ind = chain[:,0]<0.6
-    #chain = chain[ind]
+    ind = np.cos(chain[:,4])>0
+    chain = chain[ind]
     units = [u.Gyr, u.pc, u.rad, u.km/u.s, u.rad, u.Msun, u.pc, u.Myr]
 
     label = 'dynesty_vr{:.1f}'.format(fvr)
