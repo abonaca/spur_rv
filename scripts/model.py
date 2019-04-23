@@ -936,7 +936,7 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     
     #print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
     if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
-        return -(chi_gap + chi_spur + fvr*chi_vr)**0.5
+        return -(chi_gap + chi_spur + fvr*chi_vr)
     else:
         return -1e7
 
@@ -1488,9 +1488,13 @@ def prior_transform(u):
     #x1 = np.array([0.2, 10, 0, 175, 0, 6, 2, 8.5])
     #x2 = np.array([0.7, 20, 2*np.pi, 225, 2*np.pi, 7, 8, 9.5])
     
-    x1 = np.array([0, 0, 0, 0, 0, 5, 0, 7.5])
-    x2 = np.array([3, 50, 2*np.pi, 400, 2*np.pi, 8, 30, 10.5])
+    ## fiducial
+    #x1 = np.array([0, 0, 0, 0, 0, 5, 0, 7.5])
+    #x2 = np.array([3, 50, 2*np.pi, 400, 2*np.pi, 8, 30, 10.5])
     
+    # narrow
+    x1 = np.array([0.2, 10, 0, 175, 0, 6, 5, 8.5])
+    x2 = np.array([0.7, 20, 2*np.pi, 225, 2*np.pi, 7, 8, 9.5])
     
     return (x2 - x1)*u + x1
 
@@ -1501,7 +1505,7 @@ from dynesty import utils as dyfunc
 def nest_extract(label='static', fvr=0):
     """"""
     #results = pickle.load(open('../data/gd1_{:s}.pkl'.format(label), 'rb'), encoding='bytes')
-    results = pickle.load(open('../data/gd1_static_unif_multi_N1000_v{:.1f}.pkl'.format(fvr), 'rb'), encoding='bytes')
+    results = pickle.load(open('../data/gd1_static_unif_multi_dz0.5_N1000_v{:.1f}.pkl'.format(fvr), 'rb'), encoding='bytes')
     #results = pickle.load(open('../data/gd1_static_unif_multi_N1000_v0.0.pkl3', 'rb'))
     #print(results.keys())
 
@@ -1528,13 +1532,96 @@ def nest_corner(fvr=0):
     #samples[:,5] = np.log10(samples[:,5])
     
     labels = ['$T_{impact}$ [Gyr]', 'b [pc]', 'b$_\phi$ [rad]', 'V [km s$^{-1}$]', 'V$_\phi$ [rad]', 'log M/M$_\odot$', 'r$_s$ [pc]', 'T$_{gap}$ [Myr]']
-    limits = [[0,2], [0,50], [0,2*np.pi], [0,400], [0,2*np.pi], [5,8], [0,20], [8.5,9.5]]
+    limits = [[0,3], [0,50], [0,2*np.pi], [0,400], [0,2*np.pi], [5,8], [0,30], [7.5,10.5]]
     
     plt.close()
     corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, range=limits, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
     
     plt.tight_layout(h_pad=0, w_pad=0)
     plt.savefig('../plots/dycorner_static_vr{:.1f}.png'.format(fvr))
+
+def nest_perturber_present_table(N=1000, verbose=False, fvr=0):
+    """Assemble present-day position of the perturber for every chain element"""
+    
+    
+    # load perturber properties
+    s = np.load('../data/gd1_samples_static_vr{:.1f}.npz'.format(fvr))
+    chain = s['samples']
+    ind = chain[:,0]<0.6
+    chain = chain[ind]
+    units = [u.Gyr, u.pc, u.rad, u.km/u.s, u.rad, u.Msun, u.pc, u.Myr]
+
+    label = 'dynesty_vr{:.1f}'.format(fvr)
+    tout = Table(names=('x', 'y', 'z', 'vx', 'vy', 'vz', 'Timpact', 'b', 'bphi', 'v', 'vphi', 'M', 'rs', 'Tgap'))
+    Ntot = np.shape(chain)[0]
+
+    np.random.seed(4635)
+
+    #for e in range(N):
+    for e, ind in enumerate(np.random.randint(0, high=Ntot, size=N)):
+        p = chain[ind]
+        p[5] = 10**p[5]
+        t_impact, b, bphi, v, vphi, M, rs, Tgap = [x*y for x, y in zip(p, units)]
+        if verbose: print(e, p)
+        
+        # load orbital end point
+        pkl = Table.read('../data/short_endpoint.fits')
+        xend = np.array(pkl['xend'])*u.m
+        vend = np.array(pkl['vend'])*u.m/u.s
+        c_end = coord.Galactocentric(x=xend[0], y=xend[1], z=xend[2], v_x=vend[0], v_y=vend[1], v_z=vend[2], **gc_frame_dict)
+        w0_end = gd.PhaseSpacePosition(c_end.transform_to(gc_frame).cartesian)
+        
+        # find gap location at the time of impact
+        Tinit = t_impact - Tgap
+        dt_init = 0.05*u.Myr
+        n_steps = int(Tinit/dt_init)
+        
+        fit_orbit = ham.integrate_orbit(w0_end, dt=-dt_init, n_steps=n_steps)
+        xgap = fit_orbit.pos.get_xyz()[:,-1]
+        vgap = (fit_orbit.vel.get_d_xyz()[:,-1]).to(u.km/u.s)
+        
+        i = np.array([1,0,0], dtype=float)
+        j = np.array([0,1,0], dtype=float)
+        k = np.array([0,0,1], dtype=float)
+        
+        # find positional plane
+        bi = np.cross(j, vgap)
+        bi = bi/np.linalg.norm(bi)
+        bj = np.cross(vgap, bi)
+        bj = bj/np.linalg.norm(bj)
+        
+        b_ = b*np.cos(bphi)*bi + b*np.sin(bphi)*bj
+        xsub = xgap + b_
+        
+        # find velocity plane
+        vi = np.cross(vgap, b_)
+        vi = vi/np.linalg.norm(vi)
+        vj = np.cross(b_, vi)
+        vj = vj/np.linalg.norm(vj)
+        
+        vsub = v*np.cos(vphi)*vi + v*np.sin(vphi)*vj
+        
+        # perturber's orbit
+        c = coord.Galactocentric(x=xsub[0], y=xsub[1], z=xsub[2], v_x=vsub[0], v_y=vsub[1], v_z=vsub[2], **gc_frame_dict)
+        w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+        
+        dt = 0.5*u.Myr
+        n_steps = int(t_impact/dt)
+        
+        orbit_sub = ham.integrate_orbit(w0, dt=dt, n_steps=n_steps)
+        x_ = orbit_sub.pos.get_xyz()[:,-1].to(u.kpc)
+        v_ = orbit_sub.vel.get_d_xyz()[:,-1].to(u.km/u.s)
+        #c_now = coord.Galactocentric(x=x[0], y=x[1], z=x[2], v_x=v[0], v_y=v[1], v_z=v[2],**gc_frame_dict)
+        #c_icrs = c_now.transform_to(coord.ICRS)
+        #vxsub = vx
+        #vysub = vy
+        M = np.log10(M.to(u.Msun).value)
+        x, y, z = x_
+        vx, vy, vz = v_
+        tout.add_row([x, y, z, vx, vy, vz, t_impact, b, bphi, v, vphi, M, rs, Tgap])
+    
+    tout.pprint()
+    tout.write('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N), overwrite=True)
 
 # chain diagnostics
 
@@ -2168,7 +2255,67 @@ def perturber_present_table(label='', N=1000, verbose=False, vr=True):
     tout.write('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N), overwrite=True)
 
 
-def present_sgr(label='dvr_lila_v500_w200', N=1000, step=0):
+def present_sky(label='dynesty_vr', fvr=0, N=2000, step=0):
+    """"""
+    
+    t = Table.read('../data/perturber_now_{:s}{:.1f}_r{:06d}.fits'.format(label, fvr, N))
+
+    label = 'GD-1 perturber'
+    if step>1:
+        ind = np.abs(t['M']-6.9)<0.1
+        t = t[ind]
+        label = 'GD-1 perturber\n| log M/M$_\odot$ - 6.9 | < 0.1'
+    
+    c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+    ceq = c.transform_to(coord.ICRS)
+    
+    tsgr = Table.read('/home/ana/projects/h3/data/SgrTriax_DYN.dat.gz', format='ascii')
+    tsgr = tsgr[::10]
+    c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr)
+    vr = gc.vgsr_to_vhel(c_sgr, tsgr['vgsr']*u.km/u.s)
+    c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr, radial_velocity=vr)
+
+    plt.close()
+    fig = plt.figure(figsize=(12,5.2))
+    ax = fig.add_subplot(111, projection='mollweide')
+    
+    im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=t['M'], zorder=0, s=14, vmin=6, vmax=7, cmap='magma', label=label)
+    if step>2:
+        # running median
+        rabins = np.linspace(-180,180,180)
+        Nb = np.size(rabins) - 1
+        ind = np.empty(Nb, dtype=int)
+        ind_sgr = np.empty(Nb, dtype=int)
+        for i in range(Nb):
+            ra = 0.5*(rabins[i] + rabins[i+1])
+            ind[i] = np.argmin(np.abs(ra*u.deg - ceq.ra.wrap_at(wangle)))
+            ind_sgr[i] = np.argmin((ceq.ra[ind[i]].wrap_at(wangle) - c_sgr.ra.wrap_at(wangle))**2 + (ceq.dec[ind[i]] - c_sgr.dec)**2)
+        #plt.quiver(ceq.ra[ind].wrap_at(wangle).radian, ceq.dec[ind].radian, ceq.pm_ra_cosdec[ind].value, ceq.pm_dec[ind].value, color=mpl.cm.magma(0.5), width=4, units='dots', headlength=3, scale_units='inches', scale=3, label='', alpha=1)
+        plt.quiver(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, ceq.pm_ra_cosdec.value, ceq.pm_dec.value, color=mpl.cm.magma(0.5), width=4, units='dots', headlength=3, scale_units='inches', scale=3, label='', alpha=1)
+    
+    if step>0:
+        plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, color='k', edgecolors='none', s=5, alpha=0.3, rasterized=True, label='Sagittarius (LM10)')
+    if step>2:
+        
+        #ind_sgr = np.abs(tsgr['beta']-14)<0.5
+        plt.quiver(c_sgr.ra.wrap_at(wangle).radian[ind_sgr], c_sgr.dec.radian[ind_sgr], c_sgr.pm_ra_cosdec.value[ind_sgr], c_sgr.pm_dec.value[ind_sgr], width=4, units='dots', headlength=3, scale=3, scale_units='inches', alpha=1, color=mpl.cm.magma(0.8), label='Sgr $\mu$ (B $\sim$ 14$^\circ$)')
+
+    plt.legend(frameon=True, loc=2, handlelength=0.5, fontsize='small', markerscale=2, bbox_to_anchor=(0.65,0.35))
+    legend = plt.gca().get_legend()
+    legend.legendHandles[0].set_color(plt.cm.magma(0.5))
+    
+    plt.xlabel('R.A. [deg]')
+    plt.ylabel('Dec [deg]')
+    #plt.grid(True)
+    
+    plt.tight_layout()
+    
+    cb = fig.colorbar(im, ax=ax, pad=0.04, aspect=20)
+    cb.set_label('log M$_{perturb}$ / M$_\odot$')
+    
+    #plt.savefig('../plots/lgray_ucon/perturber_today_sgr_{:d}.png'.format(step), dpi=200)
+
+def present_sgr_old(label='dvr_lila_v500_w200', N=1000, step=0):
     """"""
     
     t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
