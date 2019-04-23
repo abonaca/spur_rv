@@ -1488,13 +1488,13 @@ def prior_transform(u):
     #x1 = np.array([0.2, 10, 0, 175, 0, 6, 2, 8.5])
     #x2 = np.array([0.7, 20, 2*np.pi, 225, 2*np.pi, 7, 8, 9.5])
     
-    ## fiducial
-    #x1 = np.array([0, 0, 0, 0, 0, 5, 0, 7.5])
-    #x2 = np.array([3, 50, 2*np.pi, 400, 2*np.pi, 8, 30, 10.5])
+    # fiducial
+    x1 = np.array([0, 0, 0, 0, 0, 5, 0, 7.5])
+    x2 = np.array([3, 50, 2*np.pi, 400, 2*np.pi, 8, 30, 10.5])
     
-    # narrow
-    x1 = np.array([0.2, 10, 0, 175, 0, 6, 5, 8.5])
-    x2 = np.array([0.7, 20, 2*np.pi, 225, 2*np.pi, 7, 8, 9.5])
+    ## narrow
+    #x1 = np.array([0.2, 10, 0, 175, 0, 6, 5, 8.5])
+    #x2 = np.array([0.7, 20, 2*np.pi, 225, 2*np.pi, 7, 8, 9.5])
     
     return (x2 - x1)*u + x1
 
@@ -1502,23 +1502,17 @@ def prior_transform(u):
 # diagnose nest
 from dynesty import utils as dyfunc
 
-def nest_extract(label='static', fvr=0):
+def nest_extract(label='static', fvr=0, N=100000):
     """"""
-    #results = pickle.load(open('../data/gd1_{:s}.pkl'.format(label), 'rb'), encoding='bytes')
     results = pickle.load(open('../data/gd1_static_unif_multi_dz0.5_N1000_v{:.1f}.pkl'.format(fvr), 'rb'), encoding='bytes')
-    #results = pickle.load(open('../data/gd1_static_unif_multi_N1000_v0.0.pkl3', 'rb'))
-    #print(results.keys())
 
     # Extract sampling results.
     samples = results[b'samples']  # samples
     weights = np.exp(results[b'logwt'] - results[b'logz'][-1])  # normalized weights
-
     samples_equal = dyfunc.resample_equal(samples, weights)
+
     np.savez('../data/gd1_samples_{:s}_vr{:.1f}'.format(label, fvr), samples=samples_equal)
     
-    #plt.close()
-    #corner.corner(samples_equal, bins=70, plot_datapoints=False, smooth=1, show_titles=True)
-
 def nest_reload():
     """"""
     res = pickle.load(open('../data/gd1_static_unif_multi_N1000_v0.0.pkl', 'rb'), encoding='bytes')
@@ -1529,16 +1523,27 @@ def nest_corner(fvr=0):
     """"""
     s = np.load('../data/gd1_samples_static_vr{:.1f}.npz'.format(fvr))
     samples = s['samples']
-    #samples[:,5] = np.log10(samples[:,5])
     
     labels = ['$T_{impact}$ [Gyr]', 'b [pc]', 'b$_\phi$ [rad]', 'V [km s$^{-1}$]', 'V$_\phi$ [rad]', 'log M/M$_\odot$', 'r$_s$ [pc]', 'T$_{gap}$ [Myr]']
     limits = [[0,3], [0,50], [0,2*np.pi], [0,400], [0,2*np.pi], [5,8], [0,30], [7.5,10.5]]
+
+    b = samples[:,1]
+    bphi = samples[:,2]
+    v = samples[:,3]
+    vphi = samples[:,4]
+    samples[:,1] = b*np.cos(bphi)
+    samples[:,2] = b*np.sin(bphi)
+    samples[:,3] = v*np.cos(vphi)
+    samples[:,4] = v*np.sin(vphi)
+    labels = ['$T_{impact}$ [Gyr]', 'b$_x$ [pc]', 'b$_y$ [pc]', 'V$_x$ [km s$^{-1}$]', 'V$_y$ [km s$^{-1}]$', 'log M/M$_\odot$', 'r$_s$ [pc]', 'T$_{gap}$ [Myr]']
+    limits = [[0,3], [-50,50], [-50,50], [-400,400], [-400,400], [5,8], [0,30], [7.5,10.5]]
     
     plt.close()
-    corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, range=limits, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
+    corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
+    #corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, range=limits, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
     
     plt.tight_layout(h_pad=0, w_pad=0)
-    plt.savefig('../plots/dycorner_static_vr{:.1f}.png'.format(fvr))
+    #plt.savefig('../plots/dycorner_static_vr{:.1f}.png'.format(fvr))
 
 def nest_perturber_present_table(N=1000, verbose=False, fvr=0):
     """Assemble present-day position of the perturber for every chain element"""
@@ -1547,8 +1552,8 @@ def nest_perturber_present_table(N=1000, verbose=False, fvr=0):
     # load perturber properties
     s = np.load('../data/gd1_samples_static_vr{:.1f}.npz'.format(fvr))
     chain = s['samples']
-    ind = chain[:,0]<0.6
-    chain = chain[ind]
+    #ind = chain[:,0]<0.6
+    #chain = chain[ind]
     units = [u.Gyr, u.pc, u.rad, u.km/u.s, u.rad, u.Msun, u.pc, u.Myr]
 
     label = 'dynesty_vr{:.1f}'.format(fvr)
@@ -2279,7 +2284,7 @@ def present_sky(label='dynesty_vr', fvr=0, N=2000, step=0):
     fig = plt.figure(figsize=(12,5.2))
     ax = fig.add_subplot(111, projection='mollweide')
     
-    im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=t['M'], zorder=0, s=14, vmin=6, vmax=7, cmap='magma', label=label)
+    im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=t['M'], zorder=0, s=14, vmin=6.5, vmax=7.5, cmap='magma', label=label)
     if step>2:
         # running median
         rabins = np.linspace(-180,180,180)
