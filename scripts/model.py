@@ -843,7 +843,7 @@ def lnprob(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstre
     else:
         return -np.inf
 
-def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb, poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, phi1_list, delta_phi1, mu_vr, sigma_vr, fvr, chigap_max, chispur_max):
+def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb, poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, fg, N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, fs, phi1_list, delta_phi1, mu_vr, sigma_vr, fvr, chigap_max, chispur_max):
     """Calculate pseudo-likelihood of a stream==orbit model, evaluating against the gap location & width, spur location & extent, and radial velocity offsets"""
     
     #if (x[0]<0) | (x[0]>14) | (np.sqrt(x[3]**2 + x[4]**2)>500):
