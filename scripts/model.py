@@ -936,7 +936,7 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     
     #print('{:4.2f} {:4.2f} {:4.1f}'.format(chi_gap, chi_spur, chi_vr))
     if np.isfinite(chi_gap) & np.isfinite(chi_spur) & np.isfinite(chi_vr):
-        return -(chi_gap + chi_spur + fvr*chi_vr)
+        return -(fg*chi_gap + fs*chi_spur + fvr*chi_vr)
     else:
         return -1e7
 
@@ -1339,7 +1339,7 @@ def run(cont=False, steps=100, nwalkers=100, nth=8, label='', potential_perturb=
 
 
 # nested sampling
-def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', bound='multi', Nstream=2000, fvr=1):
+def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', bound='multi', Nstream=2000, fg=1, fs=1, fvr=1):
     """"""
     pkl = Table.read('../data/gap_present.fits')
     xunit = pkl['x_gap'].unit
@@ -1453,8 +1453,8 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', bound=
     params[5] = np.log10(params[5])
     
     model_args = [params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb]
-    gap_args = [poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width]
-    spur_args = [N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad]
+    gap_args = [poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, fg]
+    spur_args = [N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, fs]
     vr_args = [phi1_list, delta_phi1, mu_vr, sigma_vr, fvr]
     lnp_args = [chigap_max, chispur_max]
     lnprob_args = model_args + gap_args + spur_args + vr_args + lnp_args
@@ -1475,7 +1475,7 @@ def run_nest(nth=10, nlive=500, dlogz=0.5, dynamic=True, sampling='unif', bound=
         sampler.run_nested(dlogz=dlogz)
     
     results = sampler.results
-    pickle.dump(results, open('../data/gd1_{:s}_{:s}_{:s}_dz{:3.1f}_N{:d}_v{:.1f}.pkl'.format(label, sampling, bound, dlogz, Nstream, fvr),'wb'))
+    pickle.dump(results, open('../data/gd1_{:s}_{:s}_{:s}_dz{:3.1f}_N{:d}_g{:1d}_s{:1d}_v{:.1f}.pkl'.format(label, sampling, bound, dlogz, Nstream, fg, fs, fvr),'wb'))
     
 def prior_transform(u):
     """"""
