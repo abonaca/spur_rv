@@ -516,18 +516,33 @@ def vr_gradient():
     """Plot radial velocity along the stream in the fiducial, non-perturbed model"""
     
     pkl0 = pickle.load(open('/home/ana/projects/gd1_spur/data/fiducial_noperturb_python3.pkl', 'rb'))
-    cmg0 = pkl0['cg']
     c0 = pkl0['cg']
     
-    plt.close()
-    plt.figure(figsize=(10,5))
+    pkl = pickle.load(open('/home/ana/projects/gd1_spur/data/fiducial_perturb_python3.pkl', 'rb'))
+    c = pkl['cg']
+
+    ind_fit = (c0.phi1.wrap_at(wangle)>-100*u.deg) & (c0.phi1.wrap_at(wangle)<20*u.deg)
+    pfit = np.polyfit(c0.phi1.wrap_at(wangle).value[ind_fit], c0.radial_velocity.value[ind_fit], 6)
+    poly = np.poly1d(pfit)
     
+    plt.close()
+    fig, ax = plt.subplots(2,1,figsize=(10,10), sharex=True)
+    
+    plt.sca(ax[0])
     plt.plot(c0.phi1.wrap_at(wangle), c0.radial_velocity, 'k.', ms=1)
+    plt.plot(c.phi1.wrap_at(wangle), c.radial_velocity, 'r.', ms=1)
+
+    plt.ylabel('$V_r$ [km s$^{-1}$]')
+    plt.ylim(-500,500)
+    
+    plt.sca(ax[1])
+    plt.plot(c0.phi1.wrap_at(wangle), c0.radial_velocity.value - poly(c0.phi1.wrap_at(wangle).value), 'ko', ms=1)
+    plt.plot(c.phi1.wrap_at(wangle), c.radial_velocity.value - poly(c.phi1.wrap_at(wangle).value), 'ro', ms=1)
     
     plt.xlabel('$\phi_1$ [deg]')
-    plt.ylabel('$V_r$ [km s$^{-1}$]')
+    plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
     plt.xlim(-100,20)
-    plt.ylim(-500,500)
+    plt.ylim(-20,20)
     plt.tight_layout()
     
     plt.savefig('../plots/model_vr_gradient.png')
@@ -535,7 +550,7 @@ def vr_gradient():
 def h3():
     """Observed H3 stars in GD-1 coordinates"""
     
-    t = Table.read('/home/ana/data/rcat_V1.2_MSG.fits')
+    t = Table.read('/home/ana/data/rcat_V1.4_MSG.fits')
     c = coord.ICRS(ra=t['GaiaDR2_ra']*u.deg, dec=t['GaiaDR2_dec']*u.deg)
     cg = c.transform_to(gc.GD1)
     #print(t.colnames)
@@ -739,6 +754,16 @@ def chelle_map():
     
 # The Payne & Minesweeper reduction
 
+def read_msg_catalog():
+    """"""
+    tp = Table.read('../data/payne_catalog.fits')
+    keys = tp.colnames
+    
+    t = Table.read('../data/GD1_MSG_V1.3.fits')
+    t.keep_columns(keys)
+    t.pprint()
+    t.write('../data/msg_catalog.fits', overwrite=True)
+
 def build_payne_catalog():
     """"""
     
@@ -762,7 +787,7 @@ def build_payne_catalog():
 def build_master_catalog():
     """"""
     
-    t = Table.read('../data/payne_catalog.fits')
+    t = Table.read('../data/msg_catalog.fits')
     N = len(t)
     starid = np.zeros(N, dtype='int')
     
@@ -782,10 +807,30 @@ def build_master_catalog():
     tphot['field'] = field
     
     tout = astropy.table.hstack([tphot, t])
+    tout['field'][tout['ra']<150] = 7
     
     # positions
-    c = coord.ICRS(ra=tout['ra']*u.deg, dec=tout['dec']*u.deg)
+    #c = coord.ICRS(ra=tout['ra']*u.deg, dec=tout['dec']*u.deg)
+    #cg = c.transform_to(gc.GD1)
+    
+    c = coord.SkyCoord(ra=tout['ra']*u.deg, dec=tout['dec']*u.deg, pm_ra_cosdec=tout['pmra']*u.mas/u.yr, pm_dec=tout['pmdec']*u.mas/u.yr, radial_velocity=tout['Vrad']*u.km/u.s)
+    #c = coord.SkyCoord(ra=g.ra, dec=g.dec, pm_ra_cosdec=g.pmra, pm_dec=g.pmdec)
     cg = c.transform_to(gc.GD1)
+
+    gd1_c_dist = gc.GD1(phi1=cg.phi1, phi2=cg.phi2,
+                        #distance=gd1_dist(cg.phi1),
+                        distance=tout['Dist']*u.kpc,
+                        pm_phi1_cosphi2=cg.pm_phi1_cosphi2,
+                        pm_phi2=cg.pm_phi2,
+                        radial_velocity=cg.radial_velocity)
+
+    # Correct for reflex motion
+    v_sun = coord.Galactocentric.galcen_v_sun
+    observed = gd1_c_dist.transform_to(coord.Galactic)
+    rep = observed.cartesian.without_differentials()
+    rep = rep.with_differentials(observed.cartesian.differentials['s'] + v_sun)
+    # gd1_c_nosunv = coord.Galactic(rep).transform_to(gc.GD1)
+    cg = coord.Galactic(rep).transform_to(gc.GD1)
     
     # velocity differential
     # polynomial fit to the track
@@ -802,9 +847,25 @@ def build_master_catalog():
     tout['phi1'] = cg.phi1.wrap_at(wangle)
     tout['phi2'] = cg.phi2
     tout['delta_Vrad'] = drv
+    tout['pm_phi1_cosphi2'] = cg.pm_phi1_cosphi2.to(u.mas/u.yr)
+    tout['pm_phi2'] = cg.pm_phi2.to(u.mas/u.yr)
     
     tout.pprint()
     tout.write('../data/master_catalog.fits', overwrite=True)
+
+def test_master():
+    """"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    t1 = Table.read('../data/master_catalog_v1.fits')
+    
+    print(len(t), len(t1))
+
+
+def gd1_dist(phi1):
+    m = (10-7) / (60)
+    return (m*phi1.wrap_at(180*u.deg).value + 10) * u.kpc
+
 
 def ra_vr():
     """"""
@@ -819,7 +880,7 @@ def ra_vr():
         t_ = t[t['field']==f]
         plt.plot(t_['ra'], t_['Vrad'], 'o')
         
-    plt.ylim(-120,-20)
+    #plt.ylim(-120,-20)
     
     plt.tight_layout()
     
@@ -831,32 +892,93 @@ def phi1_vr():
     t = t[ind]
     
     plt.close()
-    fig, ax = plt.subplots(2,1,figsize=(9,6), sharex=True)
+    fig, ax = plt.subplots(2,1,figsize=(9,9), sharex=True, gridspec_kw={'height_ratios': (1,2)})
     
     for e, f in enumerate(np.unique(t['field'])):
         t_ = t[t['field']==f]
+        #print(f, np.median(t_['phi1']))
+        ind = (t_['delta_Vrad']>-20) & (t_['FeH']<-2) & (-t_['lnL'] < 2.5E3+t_['SNR']**2.4) & (t_['SNR']>2) # & (t_['aFe']<0.3)
+
         plt.sca(ax[0])
-        plt.plot(t_['phi1'], t_['phi2'], 'o', color='C{:1d}'.format(e))
+        plt.plot(t_['phi1'], t_['phi2'], 'o', alpha=0.2, color='C{:1d}'.format(e))
+        plt.plot(t_['phi1'][ind], t_['phi2'][ind], 'o', color='C{:1d}'.format(e))
         
         plt.sca(ax[1])
-        ind = (t_['delta_Vrad']>-20) & (t_['delta_Vrad']<-1)
         plt.plot(t_['phi1'], t_['Vrad'], 'o', alpha=0.2, color='C{:1d}'.format(e))
         plt.plot(t_['phi1'][ind], t_['Vrad'][ind], 'o', color='C{:1d}'.format(e))
-        plt.errorbar(t_['phi1'][ind], t_['Vrad'][ind], yerr=(t_['lerr_Vrad'][ind], t_['uerr_Vrad'][ind]), fmt='none', color='0.2', zorder=0)
+        plt.scatter(t_['phi1'][ind], t_['Vrad'][ind], c=t_['phi2'][ind], s=20, vmin=-1, vmax=2)
         
     plt.sca(ax[0])
     plt.plot(tall['phi1'], tall['phi2'], 'k.', ms=2.5, label='Observed GD-1', zorder=0)
     plt.ylim(-3,3)
-    plt.xlim(-38,-28)
+    plt.xlim(-48,-28)
     plt.ylabel('$\phi_2$ [deg]')
     
     plt.sca(ax[1])
-    plt.ylim(-90,-30)
+    plt.ylim(-90,40)
     plt.ylabel('$V_r$ [km s$^{-1}$]')
     plt.xlabel('$\phi_1$ [deg]')
     
     plt.tight_layout(h_pad=0)
-    plt.savefig('../plots/phi1_vr.png')
+    plt.savefig('../plots/phi1_vr.png', dpi=150)
+
+def vr_perfield(color=''):
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2) & (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
+    t = t[ind]
+    #print(t.colnames)
+    
+    print(np.min(t['Teff']), np.max(t['Teff']))
+    
+    fields = np.unique(t['field'])
+    Nf = np.size(fields)
+    nrow = int(np.ceil(np.sqrt(Nf)))
+    ncol = int(np.ceil(Nf/nrow))
+    
+    da = 2.5
+    plt.close()
+    fig, ax = plt.subplots(nrow, ncol, figsize=(ncol*da, nrow*da), sharex=True, sharey=True)
+    for i in range(Nf):
+        t_ = t[t['field']==fields[i]]
+
+        irow = i%ncol
+        icol = int(i/ncol)
+        axes = [ax[irow][icol], ax[nrow-1][ncol-1]]
+
+        for ax_ in axes:
+            plt.sca(ax_)
+            
+            if len(color)==0:
+                plt.plot(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), 'o', color='C{:1d}'.format(i))
+                plt.errorbar(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), yerr=(t_['lerr_Vrad'], t_['uerr_Vrad']), fmt='none', color='C{:1d}'.format(i))
+            elif color=='phi2':
+                plt.scatter(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), c=t_['phi2'] - np.median(t_['phi2']), vmin=-0.3, vmax=0.3, cmap='RdBu', zorder=1)
+                plt.errorbar(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), yerr=(t_['lerr_Vrad'], t_['uerr_Vrad']), fmt='none', color='0.5', zorder=0)
+            elif color=='afe':
+                plt.scatter(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), c=t_['aFe'], vmin=-0.2, vmax=0.6, cmap='magma', zorder=1)
+                plt.errorbar(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), yerr=(t_['lerr_Vrad'], t_['uerr_Vrad']), fmt='none', color='0.5', zorder=0)
+            elif color=='feh':
+                plt.scatter(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), c=t_['FeH'], vmin=-3, vmax=-2, cmap='magma', zorder=1)
+                plt.errorbar(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), yerr=(t_['lerr_Vrad'], t_['uerr_Vrad']), fmt='none', color='0.5', zorder=0)
+            elif color=='teff':
+                plt.scatter(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), c=t_['Teff'], cmap='magma', vmin=5200, vmax=6900, zorder=1)
+                plt.errorbar(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), yerr=(t_['lerr_Vrad'], t_['uerr_Vrad']), fmt='none', color='0.5', zorder=0)
+        
+        plt.xlim(-0.6, 0.6)
+        plt.ylim(-7, 7)
+    
+    for i in range(ncol):
+        plt.sca(ax[nrow-1][i])
+        plt.xlabel('$\Delta$ $\phi_1$ [deg]')
+    
+    for i in range(nrow):
+        plt.sca(ax[i][0])
+        plt.ylabel('$\Delta$ $V_{rad}$ [km s$^{-1}$]')
+    
+    plt.tight_layout(h_pad=0.4, w_pad=0.1)
+    plt.savefig('../plots/phi1_vr_perfield_{:s}.png'.format(color), dpi=150)
+    
 
 def phi1_dvr():
     """"""
@@ -864,7 +986,8 @@ def phi1_dvr():
     tall = Table.read('/home/ana/data/gd1-better-selection.fits')
 
     t = Table.read('../data/master_catalog.fits')
-    ind = (t['priority']<4) #& (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
+    #ind = (t['priority']<4) #& (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
+    ind = (t['priority']<=3) & (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2) #& (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
     t = t[ind]
     
     plt.close()
@@ -874,30 +997,31 @@ def phi1_dvr():
         t_ = t[t['field']==f]
 
         plt.sca(ax[0])
-        plt.plot(t_['phi1'], t_['phi2'], 'o')
+        plt.plot(t_['phi1'], t_['phi2'], 'o', label='{}'.format(f))
         
         plt.sca(ax[1])
         plt.plot(t_['phi1'], t_['delta_Vrad'], 'o')
         plt.errorbar(t_['phi1'], t_['delta_Vrad'], yerr=(t_['lerr_Vrad'], t_['uerr_Vrad']), fmt='none', color='0.2', zorder=0)
     
     plt.sca(ax[0])
-    plt.plot(tall['phi1'], tall['phi2'], 'k.', ms=2.5, label='Observed GD-1', zorder=0)
+    plt.plot(tall['phi1'], tall['phi2'], 'k.', ms=2.5, label='', zorder=0)
     plt.ylim(-3,3)
     plt.ylabel('$\phi_2$ [deg]')
+    #plt.legend(loc=2, bbox_to_anchor=(1,1), handlelength=0.5)
     
     plt.sca(ax[1])
-    plt.ylim(-20,20)
-    plt.xlim(-38,-28)
+    plt.ylim(-40,20)
+    plt.xlim(-48,-28)
     plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
     
     plt.sca(ax[2])
     im2 = plt.scatter(t['phi1'], t['delta_Vrad'], c=t['FeH'], vmin=-3, vmax=-1.5)
-    plt.ylim(-20,20)
+    plt.ylim(-20,0)
     plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
     
     plt.sca(ax[3])
     im3 = plt.scatter(t['phi1'], t['delta_Vrad'], c=t['aFe'], vmin=-0.2, vmax=0.6)
-    plt.ylim(-20,20)
+    plt.ylim(-20,0)
     plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
     plt.xlabel('$\phi_1$ [deg]')
     
@@ -932,6 +1056,24 @@ def phi2_dvr():
     plt.ylim(-20,20)
     
     plt.tight_layout()
+
+def phi1_dvr_phi2():
+    """Plot delta vr vs phi1, colored by phi2"""
+    t = Table.read('../data/master_catalog.fits')
+    ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2) & (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
+    t = t[ind]
+    
+    plt.close()
+    plt.figure(figsize=(10,10))
+    
+    plt.scatter(t['phi1'], t['Vrad'], c=t['phi2'], vmin=-0.5, vmax=1.5, s=40)
+    #plt.ylim(-20,0)
+    plt.xlabel('$\phi_1$ [deg]')
+    plt.ylabel('$V_r$ [km s$^{-1}$]')
+    
+    plt.tight_layout()
+
+    
 
 def afeh():
     """"""
@@ -1001,7 +1143,7 @@ def brute_membership():
     """A very crude determination of the stream members"""
     
     t = Table.read('../data/master_catalog.fits')
-    ind = (t['priority']<4) & (t['delta_Vrad']>-20) & (t['delta_Vrad']<-1)
+    ind = (t['priority']<=3) & (t['delta_Vrad']>-20) & (t['delta_Vrad']<-1)
     t = t[ind]
     t.write('../data/members_catalog.fits', overwrite=True)
     
@@ -1011,7 +1153,7 @@ def vr_profile(deg=1):
     
     t = Table.read('../data/members_catalog.fits')
     
-    spur = (t['field']==2) | (t['field']==4) | (t['field']==5)
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==6) | (t['field']==5)
     stream = ~spur
     stream2 = (t['field']==1) | (t['field']==3)
     labels = ['Stream', 'Spur']
@@ -1024,7 +1166,7 @@ def vr_profile(deg=1):
         # polyfit
         p += [np.polyfit(t['phi1'][ind], t['Vrad'][ind], deg, w=t['std_Vrad'][ind]**-1)]
         poly = np.poly1d(p[e])
-        x = np.linspace(-37, -29.2, 100)
+        x = np.linspace(-48, -29.2, 100)
         y = poly(x)
         
         # plot
@@ -1056,11 +1198,13 @@ def relative_vr():
     """"""
 
     t = Table.read('../data/members_catalog.fits')
-    spur = (t['field']==2) | (t['field']==4) | (t['field']==5)
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==6) | (t['field']==5)
     stream = ~spur
     
-    pkl = pickle.load(open('../data/polyfit_rv_1.pkl', 'rb'))
-    p = pkl['p_spur']
+    pkl = pickle.load(open('../data/polyfit_rv_2.pkl', 'rb'))
+    #p = pkl['p_spur']
+    p = pkl['p_stream']
+    print(p)
     poly = np.poly1d(p)
     dvr = t['Vrad'] - poly(t['phi1'])
     
@@ -1079,7 +1223,7 @@ def relative_vr():
     
     plt.legend(loc=1, frameon=False)
     plt.xlabel('$\phi_1$ [deg]')
-    plt.ylabel('$V_r$ - $V_{r, spur\;fit}$ [km s$^{-1}$]')
+    plt.ylabel('$V_r$ - $V_{r, stream\;fit}$ [km s$^{-1}$]')
     plt.tight_layout()
     plt.savefig('../plots/relative_vr.png')
 
@@ -1089,7 +1233,7 @@ def afeh_comparison(priority=1):
     t = Table.read('../data/master_catalog.fits')
     ind = (t['priority']<=priority) & (t['delta_Vrad']<0) & (t['delta_Vrad']>-20)
     
-    spur = (t['field']==2) | (t['field']==4) | (t['field']==5)
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
     stream = ~spur
     
     bins_feh = np.linspace(-3,0,40)
@@ -1194,12 +1338,12 @@ def vr_median():
     dv_med = v_med - qpoly(phi1)
     np.save('../data/poly_vr_median', q)
     
-    spur = (fields==2) | (fields==4) | (fields==5)
+    spur = (fields==2) | (fields==4) | (fields==5) | (fields==6)
     stream = ~spur
     
     np.savez('../data/field_vr_summary', phi1=phi1, phi2=phi2, dv_med=dv_med, v_std=v_std, sigma_med=sigma_med, sigma_std=sigma_std, fields=fields, spur=spur, stream=stream)
     
-    spur_global = (t['field']==2) | (t['field']==4) | (t['field']==5)
+    spur_global = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
     stream_global = ~spur_global
     labels = ['Stream', 'Spur']
     colors = ['deepskyblue', 'midnightblue']
@@ -1252,7 +1396,8 @@ def vr_dispersion():
     """"""
     
     t = Table.read('../data/master_catalog.fits')
-    ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
+    #ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
+    ind = (t['priority']<=3) & (t['delta_Vrad']>-20) & (t['delta_Vrad']<-1) & (t['FeH']<-2) & (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
     t = t[ind]
     
     M = 1000
@@ -1294,10 +1439,10 @@ def vr_dispersion():
     qpoly = np.poly1d(q)
     dv_med = v_med - qpoly(phi1)
     
-    spur = (fields==2) | (fields==4) | (fields==5)
+    spur = (fields==2) | (fields==4) | (fields==5) | (fields==6)
     stream = ~spur
     
-    spur_global = (t['field']==2) | (t['field']==4) | (t['field']==5)
+    spur_global = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
     stream_global = ~spur_global
     labels = ['Stream', 'Spur']
     colors = ['deepskyblue', 'midnightblue']
@@ -1322,6 +1467,7 @@ def vr_dispersion():
     plt.legend(frameon=False, loc=1)
     plt.ylabel('$V_r$ [km s$^{-1}$]')
     plt.text(0.05, 0.1, 'Individual members', transform=plt.gca().transAxes)
+    plt.ylim(-100,-10)
     
     plt.sca(ax[1])
     for e, ind in enumerate([stream, spur]):
@@ -1341,6 +1487,8 @@ def vr_dispersion():
     
     plt.xlabel('$\phi_1$ [deg]')
     plt.ylabel('$\sigma_{V_r}$ [km s$^{-1}$]')
+    plt.ylim(0,5)
+    plt.minorticks_on()
     plt.text(0.05, 0.1, 'Field dispersion', transform=plt.gca().transAxes)
     plt.tight_layout(h_pad=0.2)
     plt.savefig('../plots/kinematic_profile.png')
@@ -1351,7 +1499,7 @@ def cmd_members():
     ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
     t = t[ind]
     
-    spur = (t['field']==2) | (t['field']==4) | (t['field']==5)
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
     stream = ~spur
     labels = ['Stream', 'Spur']
     colors = [mpl.cm.Blues(0.6), mpl.cm.Blues(0.85)]
@@ -1371,7 +1519,7 @@ def snr_members(verbose=False):
     ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
     t = t[ind]
     
-    spur = (t['field']==2) | (t['field']==4) | (t['field']==5)
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
     stream = ~spur
     labels = ['Stream', 'Spur']
     colors = [mpl.cm.Blues(0.6), mpl.cm.Blues(0.85)]
@@ -1402,7 +1550,7 @@ def afeh_members():
     ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
     t = t[ind]
     
-    spur = (t['field']==2) | (t['field']==4) | (t['field']==5)
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
     stream = ~spur
     labels = ['Stream', 'Spur']
     colors = [mpl.cm.Blues(0.6), mpl.cm.Blues(0.85)]
@@ -1439,13 +1587,13 @@ def distance_members():
     ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
     t = t[ind]
     
-    spur = (t['field']==2) | (t['field']==4) | (t['field']==5)
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
     stream = ~spur
     labels = ['Stream', 'Spur']
     colors = [mpl.cm.Blues(0.6), mpl.cm.Blues(0.85)]
     
     plt.close()
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(10, 5))
     
     for e, ind in enumerate([stream, spur]):
         plt.plot(t['phi1'][ind], t['Dist'][ind], 'o', color=colors[e])
@@ -1453,19 +1601,413 @@ def distance_members():
     
     plt.xlabel('$\phi_1$ [deg]')
     plt.ylabel('Distance [kpc]')
-    plt.ylim(0,25)
+    plt.ylim(0,13)
     
     plt.tight_layout()
     plt.savefig('../plots/distance_members.png')
 
 
+steelblue = '#a2b3d2'
+navyblue = '#294882'
+fuchsia = '#ff3643'
+
+def plot_membership():
+    """Plot likely members and their selection in the CMD, radial velocity and chemical space"""
+    
+    t = Table.read('../data/master_catalog.fits')
+
+    mem_dict = get_members(t, full=True)
+    cmdmem = mem_dict['cmdmem']
+    vrmem = mem_dict['vrmem']
+    vrlims = mem_dict['vrlims']
+    fehlims = mem_dict['fehlims']
+    
+    bvr = np.linspace(-150,150,50)
+    
+    plt.close()
+    fig, ax = plt.subplots(1, 3, figsize=(15,5), gridspec_kw={'width_ratios': [1,1.7,3.2]})
+    
+    plt.sca(ax[0])
+    plt.plot(t['g'] - t['i'], t['g'], 'o', color=steelblue, mec='none', ms=5, alpha=0.5)
+    plt.plot(t['g'][cmdmem] - t['i'][cmdmem], t['g'][cmdmem], 'o', color=navyblue, mec='none', ms=5)
+    
+    plt.xlim(-0.5,1.5)
+    plt.ylim(20.6,14.5)
+    plt.xlabel('(g - i)$_0$ [mag]')
+    plt.ylabel('g$_0$ [mag]')
+    #plt.title('Proper motion', fontsize='medium')
+    
+    plt.sca(ax[1])
+    plt.hist(t['delta_Vrad'][~cmdmem], bins=bvr, histtype='stepfilled', color=steelblue, alpha=0.5, density=False)
+    plt.hist(t['delta_Vrad'][cmdmem], bins=bvr, histtype='stepfilled', color=navyblue, density=False)
+    
+    for vrlim in vrlims:
+        plt.axvline(vrlim, ls='--', lw=3, color=fuchsia)
+    
+    plt.xlim(-150,150)
+    plt.ylabel('Number')
+    plt.xlabel('$V_r$ - $V_{r,orbit}$ [km s$^{-1}$]')
+    #plt.title('+ Color - magnitude', fontsize='medium')
+    
+    plt.sca(ax[2])
+    plt.plot(t['FeH'][cmdmem & vrmem], t['aFe'][cmdmem & vrmem], 'o', color=navyblue, mec='none', ms=6, label='GD-1 members', zorder=1)
+    plt.plot(t['FeH'][~(cmdmem & vrmem)], t['aFe'][~(cmdmem & vrmem)], 'o', color=steelblue, mec='none', alpha=0.5, ms=6, label='Field stars', zorder=0)
+    
+    for fehlim in fehlims:
+        plt.axvline(fehlim, ls='--', lw=3, color=fuchsia, label='', zorder=2)
+    
+    plt.legend(loc=1, frameon=True, handlelength=1, fontsize='small', markerscale=1.3)
+    
+    plt.xlim(-3,0)
+    plt.ylim(-0.2,0.6)
+    plt.ylabel('[$\\alpha$/Fe]')
+    plt.xlabel('[Fe/H]')
+    #plt.title('+ Radial velocity selection', fontsize='medium')
+
+    plt.tight_layout()
+    plt.savefig('../paper/members.pdf')
+
+def get_members(t, full=False):
+    """Return indices of GD-1 members"""
+    
+    cmdlim = 3
+    cmdmem = t['priority']<=cmdlim
+    
+    vrlims = np.array([-1,-20])
+    vrmem = (t['delta_Vrad']<vrlims[0]) & (t['delta_Vrad']>vrlims[1])
+    
+    fehlims = np.array([-1.9,-2.8])
+    fehmem = (t['FeH']<fehlims[0]) & (t['FeH']>fehlims[1])
+    
+    members = cmdmem & vrmem & fehmem
+    
+    if full:
+        return_dict = {'mem': members, 'cmdmem': cmdmem, 'vrmem': vrmem, 'fehmem': fehmem, 'cmdlim': cmdlim, 'vrlims': vrlims, 'fehlims': fehlims}
+        return return_dict
+    else:
+        return members
+
+# proper motions
+
+def pm_offset():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    ind = (t['priority']<=5) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2) #& (np.abs(t['pmra_error']/t['pmra'])<0.07)
+    t = t[ind]
+    
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
+    stream = ~spur
+    labels = ['Stream', 'Spur']
+    colors = [mpl.cm.Blues(0.6), mpl.cm.Blues(0.85)]
+    
+    #print(np.median(np.abs(t['pmra_error']/t['pmra'])))
+    #print(np.median(np.abs(t['pmdec_error']/t['pmdec'])))
+    
+    qra = np.polyfit(t['phi1'][stream], t['pm_phi1_cosphi2'][stream], 2, w=t['pmra_error'][stream]**-1)
+    polyra = np.poly1d(qra)
+    dra = t['pm_phi1_cosphi2'] #- polyra(t['phi1'])
+    #dra = t['pmra']
+    
+    qdec = np.polyfit(t['phi1'][stream], t['pm_phi2'][stream], 2, w=t['pmdec_error'][stream]**-1)
+    polydec = np.poly1d(qdec)
+    ddec = t['pm_phi2'] #- polydec(t['phi1'])
+    #ddec = t['pmdec']
+    
+    plt.close()
+    fig, ax = plt.subplots(2,1,figsize=(12,8), sharex=True)
+    
+    for e, s in enumerate([stream, spur]):
+        plt.sca(ax[0])
+        plt.plot(t['phi1'][s], dra[s], 'o', color=colors[e])
+        plt.errorbar(t['phi1'][s], dra[s], yerr=t['pmra_error'][s], color=colors[e], fmt='none')
+        #plt.plot(t['phi1'][s], t['pmra'][s], 'o', color=colors[e])
+        #plt.errorbar(t['phi1'][s], t['pmra'][s], yerr=t['pmra_error'][s], color=colors[e], fmt='none')
+        
+        #plt.axhline(0, color='k', alpha=0.5, lw=0.5)
+        #plt.ylim(-2.5,2.5)
+        #plt.xlabel('$\phi_1$ [deg]')
+        plt.ylabel('$\Delta\mu_{\phi_1}$ [mas yr$^{-1}$]')
+        
+        plt.sca(ax[1])
+        plt.plot(t['phi1'][s], ddec[s], 'o', color=colors[e])
+        plt.errorbar(t['phi1'][s], ddec[s], yerr=t['pmdec_error'][s], color=colors[e], fmt='none')
+        #plt.plot(t['phi1'][s], t['pmdec'][s], 'o', color=colors[e])
+        #plt.errorbar(t['phi1'][s], t['pmdec'][s], yerr=t['pmdec_error'][s], color=colors[e], fmt='none')
+        
+        #plt.axhline(0, color='k', alpha=0.5, lw=0.5)
+        #plt.ylim(-2.5,2.5)
+        plt.xlabel('$\phi_1$ [deg]')
+        plt.ylabel('$\Delta\mu_{\phi_2}$ [mas yr$^{-1}$]')
+    
+    plt.tight_layout()
+    plt.savefig('../plots/pm_offset.png')
 
 
+# payne version comparison
 
+def version_match():
+    """Match stars ran through both versions of the pipeline"""
+    
+    t0 = Table.read('../data/master_catalog_v1.fits')
+    t1 = Table.read('../data/master_catalog.fits')
+    
+    c0 = coord.SkyCoord(ra=t0['ra']*u.deg, dec=t0['dec']*u.deg)
+    c1 = coord.SkyCoord(ra=t1['ra']*u.deg, dec=t1['dec']*u.deg)
+    idx, d2d, d3d = c0.match_to_catalog_sky(c1)
+    
+def version_dvr(members=False):
+    """"""
+    
+    t0 = Table.read('../data/master_catalog_v1.fits')
+    t1 = Table.read('../data/master_catalog.fits')
+    
+    if members:
+        ind = t0['priority']<=2
+        t0 = t0[ind]
+    
+    c0 = coord.SkyCoord(ra=t0['ra']*u.deg, dec=t0['dec']*u.deg)
+    c1 = coord.SkyCoord(ra=t1['ra']*u.deg, dec=t1['dec']*u.deg)
+    idx, d2d, d3d = c0.match_to_catalog_sky(c1)
+    
+    dvr = t0['Vrad'] - t1[idx]['Vrad']
+    
+    plt.close()
+    fig, ax = plt.subplots(2,2, figsize=(16,8), sharex='col', sharey='row')
+    
+    # along the stream
+    plt.sca(ax[0][0])
+    plt.plot(t0['phi1'], dvr, 'ko')
+    
+    plt.ylabel('$\Delta V_{r}$ [km s$^{-1}$]')
+    
+    plt.sca(ax[1][0])
+    plt.plot(t0['phi1'], dvr, 'ko')
+    plt.errorbar(t0['phi1'], dvr, yerr=t0['std_Vrad'], fmt='none', color='k', alpha=0.1)
+    plt.axhline(0, color='r', lw=0.5, zorder=0)
+    
+    plt.ylim(-3,3)
+    plt.xlabel('$\phi_1$ [deg]')
+    plt.ylabel('$\Delta V_{r}$ [km s$^{-1}$]')
+    
+    # as a function of SNR
+    plt.sca(ax[0][1])
+    plt.plot(t0['SNR'], dvr, 'ko')
+    
+    plt.sca(ax[1][1])
+    plt.plot(t0['SNR'], dvr, 'ko')
+    plt.errorbar(t0['SNR'], dvr, yerr=t0['std_Vrad'], fmt='none', color='k', alpha=0.1)
+    plt.axhline(0, color='r', lw=0.5, zorder=0)
+    
+    plt.ylim(-3,3)
+    plt.xlabel('S/N')
 
+    plt.tight_layout()
+    plt.savefig('../plots/version_dvr.png')
 
+def version_phi1_dvr():
+    """"""
+    
+    t0 = Table.read('../data/master_catalog_v1.fits')
+    ind = t0['priority']<=2
+    t0 = t0[ind]
+    t1 = Table.read('../data/master_catalog.fits')
+    
+    c0 = coord.SkyCoord(ra=t0['ra']*u.deg, dec=t0['dec']*u.deg)
+    c1 = coord.SkyCoord(ra=t1['ra']*u.deg, dec=t1['dec']*u.deg)
+    idx, d2d, d3d = c0.match_to_catalog_sky(c1)
+    
+    t = t1[idx]
+    
+    #t = Table.read('../data/members_catalog.fits')
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==6) | (t['field']==5)
+    stream = ~spur
+    
+    pkl = pickle.load(open('../data/polyfit_rv_2.pkl', 'rb'))
+    #p = pkl['p_spur']
+    p = pkl['p_stream']
+    print(p)
+    poly = np.poly1d(p)
+    dvr = t['Vrad'] - poly(t['phi1'])
+    dvr0 = t0['Vrad'] - poly(t0['phi1'])
+    
+    print(np.shape(dvr), np.shape(dvr0))
+    
+    indices = [stream, spur]
+    colors = ['darkorange', 'navy', ]
+    labels = ['Stream', 'Spur']
 
+    plt.close()
+    plt.figure(figsize=(10,5))
+    
+    plt.axhline(0, color='k', alpha=0.5, lw=2)
+    
+    for e, ind in enumerate(indices):
+        plt.plot(t['phi1'][ind], dvr[ind], 'o', color=colors[e], label=labels[e]+' new')
+        plt.errorbar(t['phi1'][ind], dvr[ind], yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt='none', color=colors[e], zorder=0, lw=1.5, label='')
+        
+        plt.errorbar(t0['phi1'][ind], dvr0[ind], yerr=(t0['lerr_Vrad'][ind], t0['uerr_Vrad'][ind]), fmt='none', color=colors[e], zorder=0, lw=1.5, label='')
+        plt.plot(t0['phi1'][ind], dvr0[ind], 'wo', mec=colors[e], label=labels[e]+' old')
 
+    plt.ylim(-20,20)
+    plt.legend(loc=1, frameon=False, ncol=2)
+    plt.xlabel('$\phi_1$ [deg]')
+    plt.ylabel('$V_r$ - $V_{r, stream\;fit}$ [km s$^{-1}$]')
+    
+    plt.tight_layout()
+    plt.savefig('../plots/version_phi_dvr.png')
 
+def fiber_vr(expand=1):
+    """"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    ind = (t['priority']<=3) & (t['delta_Vrad']>-20) & (t['delta_Vrad']<0)
+    t = t[ind]
+    
+    fields = np.unique(t['field'])
+    #fields = [2,4,5]
+    #fields = [5,7]
+    
+    plt.close()
+    plt.figure(figsize=(8,10))
+    
+    for e, f in enumerate(fields):
+        ind = t['field']==f
+        t_ = t[ind]
+        
+        #plt.plot(t_['fibID'], t_['delta_Vrad'] + e*30, 'o', ms=10, label='{}'.format(f))
+        plt.plot(t_['fibID'], t_['Vrad'] - np.median(t_['Vrad']) + e*expand*30, 'o', ms=10, label='{}'.format(f))
 
+    plt.xlabel('Fiber ID')
+    plt.ylabel('$V_r$ - $\overline{V_r}$ [km s$^{-1}$]')
+    
+    #plt.legend()
+    #plt.ylim(-30,30)
+    #plt.ylim(-10,10)
+    plt.tight_layout()
+    plt.savefig('../plots/fiber_vr_{}.png'.format(expand))
+    
+def fiber_vr_april():
+    """"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    ind = (t['priority']<=3) & (t['delta_Vrad']>-20) & (t['delta_Vrad']<0)
+    t = t[ind]
+    print(t.colnames)
+    print(t['name'])
+
+    fields = [5,7]
+    
+    plt.close()
+    plt.figure(figsize=(8,8))
+    
+    for e, f in enumerate(fields):
+        ind = t['field']==f
+        t_ = t[ind]
+        print(np.array(t_['name']))
+        #print(np.array(t_['']))
+        
+        #plt.plot(t_['fibID'], t_['delta_Vrad'] + e*30, 'o', ms=10, label='{}'.format(f))
+        plt.plot(t_['fibID'], t_['Vrad'] - 0*np.median(t_['Vrad']) + e*0, 'o', ms=10, label='{}'.format(f))
+
+    #plt.legend()
+    #plt.ylim(-30,30)
+    #plt.ylim(-10,10)
+    plt.xlabel('Fiber ID')
+    plt.ylabel('$V_r$ - $\overline{V_r}$ [km s$^{-1}$]')
+    
+    plt.tight_layout()
+    plt.savefig('../plots/fiber_vr_april.png')
+
+def field_snr():
+    """"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    #print(t.colnames)
+    
+    fields = np.unique(t['field'])
+    #fields = [2,4,5]
+    
+    plt.close()
+    plt.figure(figsize=(8,8))
+    
+    for e, f in enumerate(fields):
+        ind = t['field']==f
+        t_ = t[ind]
+        #print(t_['SNR'])
+        #print(t_['phot_g_mean_mag'])
+        
+        plt.plot(t_['phot_g_mean_mag'], t_['SNR'], 'o', ms=4, label='{}'.format(f))
+    
+    plt.gca().set_yscale('log')
+    plt.legend(markerscale=2)
+    plt.xlabel('G')
+    plt.ylabel('S/N')
+
+    plt.tight_layout()
+    plt.savefig('../plots/field_snr.png')
+
+def phi1_vr_fiber():
+    """"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    ind = (t['priority']<=3) & (t['delta_Vrad']>-20) & (t['delta_Vrad']<0)
+    t = t[ind]
+    
+    fields = np.unique(t['field'])
+    
+    plt.close()
+    fig, ax = plt.subplots(8,1,figsize=(7,10))
+    
+    for e, f in enumerate(fields):
+        ind = t['field']==f
+        t_ = t[ind]
+        
+        plt.sca(ax[e])
+        plt.scatter(t_['phi1'], t_['Vrad'], c=t_['fibID'], vmin=0, vmax=255,)
+        
+        plt.xticks([])
+
+    plt.xlabel('$\phi_1$ [deg]')
+    fig.text(0.01, 0.5, '$V_r$ [km s$^{-1}$]', va='center', rotation='vertical')
+    
+    plt.tight_layout(rect=[0.03,0,1,1], h_pad=0)
+    plt.savefig('../plots/phi1_vr_field.png')
+
+# spur properties
+def spur_afe():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2) & (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
+    t = t[ind]
+    
+
+# single field analysis
+def field_vr(field=1):
+    """"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    ind = (t['priority']<4) & (t['field']==field)
+    t = t[ind]
+    
+    #print(t.colnames)
+    
+    #print(np.median(t['Vrad']))
+    dvr = t['Vrad'] - np.median(t['Vrad'])
+    ind = np.abs(dvr)<10
+    t = t[ind]
+    dvr = dvr[ind]
+    #print(t['starname'])
+    
+    plt.close()
+    fig, ax = plt.subplots(1,2,sharey=True)
+    
+    plt.sca(ax[0])
+    plt.scatter(t['phi1'], t['phi2'], c=dvr, vmin=-1, vmax=4, s=40)
+    #plt.gca().set_aspect('equal')
+    
+    plt.sca(ax[1])
+    plt.plot(dvr, t['phi2'], 'ko')
+    
+    
+    plt.tight_layout()
 
