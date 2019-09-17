@@ -940,13 +940,11 @@ def lnprob_nest(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, 
     else:
         return -1e7
 
-def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb, poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, phi1_list, delta_phi1, mu_vr, sigma_vr, chigap_max, chispur_max, colored=True, plot_comp=True, chi_label=True):
+def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb, poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, fg, N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, fs, phi1_list, delta_phi1, mu_vr, sigma_vr, fvr, chigap_max, chispur_max, colored=True, plot_comp=True, chi_label=True):
     """Calculate pseudo-likelihood of a stream==orbit model, evaluating against the gap location & width, spur location & extent, and radial velocity offsets"""
     
-    #if (x[0]<0) | (x[0]>14) | (np.sqrt(x[3]**2 + x[4]**2)>500):
+    #if (x[0]<0) | (x[0]>0.6) | (x[3]<0) | (x[1]<0) | (np.sqrt(x[3]**2 + x[4]**2)>500):
         #return -np.inf
-    if (x[0]<0) | (x[0]>0.6) | (x[3]<0) | (x[1]<0) | (np.sqrt(x[3]**2 + x[4]**2)>500):
-        return -np.inf
     
     x[5] = 10**x[5]
     params = [x_*u_ for x_, u_ in zip(x, params_units)]
@@ -979,9 +977,6 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     ind_loop1 = np.where(dE[:N2]<top1)[0][0]
     ind_loop2 = np.where(dE[N2:]>top2)[0][-1]
     
-    #print(dE, top1, top2)
-    #print(np.where(dE[:N2]<top1))
-    #print(np.where(dE[N2:]>top2))
     f = scipy.interpolate.interp1d(spx, spy, kind='quadratic')
     
     aloop_mask = np.zeros(Nstream, dtype=bool)
@@ -999,7 +994,6 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     chi_spur = chi_spur + (phi1_max + 30)**2/(2**2)
     
     # vr chi^2
-    #print(phi1_list)
     indmin = 0
     indmax = np.argmax(cg.phi1.wrap_at(wangle).value[aloop_mask])
     if (np.max(cg.phi1.wrap_at(wangle)[aloop_mask])<phi1_list[-1]) | (indmin>=indmax):
@@ -1008,7 +1002,7 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
         vr_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.radial_velocity.to(u.km/u.s)[aloop_mask][indmin:indmax])*u.km/u.s
         isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
         vr_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
-        chi_vr = np.sum((vr_spur - vr_stream)**2/sigma_vr**2)
+        chi_vr = np.sum((vr_spur - vr_stream)**2/sigma_vr**2).decompose()
     
     # gap chi^2
     phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
@@ -1028,29 +1022,14 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     ytop_model = ytop_model * scale_gap
     chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
     
-    plt.close()
-    fig, ax = plt.subplots(3,2,figsize=(12,9))
-    
-    plt.sca(ax[0][0])
-    plt.plot(bc, h_model, 'o')
-    if plot_comp:
-        plt.plot(bc, ytop_model, 'k-')
-
-    if chi_label:
-        plt.text(0.95, 0.15, '$\chi^2_{{gap}}$ = {:.2f}'.format(chi_gap), ha='right', transform=plt.gca().transAxes, fontsize='small')
-    plt.ylabel('N')
-    plt.xlim(-60,-20)
-    
-    plt.sca(ax[1][0])
-    plt.plot(cg.phi1.wrap_at(wangle).value, dE, 'o')
-    if colored:
-        plt.plot(cg.phi1.wrap_at(wangle).value[aloop_mask], dE[aloop_mask], 'o')
-    plt.ylabel('$\Delta$ E')
-    
     colors = [mpl.cm.Blues(0.6), mpl.cm.Blues(0.85)]
     colors = ['tab:blue', 'tab:orange']
-
-    plt.sca(ax[2][0])
+    
+    plt.close()
+    fig, ax = plt.subplots(3,2,figsize=(12,9), sharex='col')
+    
+    # spur
+    plt.sca(ax[0][0])
     plt.plot(cg.phi1.wrap_at(wangle).value, cg.phi2.value, 'o', color=colors[0])
     if colored:
         plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], cg.phi2.value[loop_mask], 'o', color=colors[1])
@@ -1060,59 +1039,36 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     
     if chi_label:
         plt.text(0.95, 0.15, '$\chi^2_{{spur}}$ = {:.2f}'.format(chi_spur), ha='right', transform=plt.gca().transAxes, fontsize='small')
-    plt.xlabel('$\phi_1$ [deg]')
     plt.ylabel('$\phi_2$ [deg]')
     plt.xlim(-60,-20)
     plt.ylim(-5,5)
     
-    plt.sca(ax[0][1])
-    plt.plot(c.x.to(u.kpc), c.y.to(u.kpc), 'o')
-    if colored:
-        plt.plot(c.x.to(u.kpc)[loop_mask], c.y.to(u.kpc)[loop_mask], 'o') #, color='orange')
+    # gap
+    plt.sca(ax[1][0])
+    plt.plot(bc, h_model, 'o')
+    if plot_comp:
+        plt.plot(bc, ytop_model, 'k-')
+
+    if chi_label:
+        plt.text(0.95, 0.15, '$\chi^2_{{gap}}$ = {:.2f}'.format(chi_gap), ha='right', transform=plt.gca().transAxes, fontsize='small')
+    plt.ylabel('N')
+    plt.xlim(-60,-20)
     
-    plt.xlabel('x [kpc]')
-    plt.ylabel('y [kpc]')
-    
-    plt.sca(ax[1][1])
-    cr = np.sqrt(c.x**2 + c.y**2)
-    plt.plot(cr.to(u.kpc), c.z.to(u.kpc), 'o')
-    if colored:
-        plt.plot(cr.to(u.kpc)[loop_mask], c.z.to(u.kpc)[loop_mask], 'o') #, color='orange')
-    
-    plt.xlabel('R [kpc]')
-    plt.ylabel('z [kpc]')
-    
-    plt.sca(ax[2][1])
+    # vr
+    plt.sca(ax[2][0])
     isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
     vr0 = np.interp(cg.phi1.wrap_at(wangle).value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
     dvr = vr0 - cg.radial_velocity.to(u.km/u.s)
-    #dvr = cg.radial_velocity.to(u.km/u.s)
+
     plt.plot(cg.phi1.wrap_at(wangle).value, dvr, 'o', color=colors[0])
     if colored:
         plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], dvr[loop_mask], 'o', color=colors[1])
-        #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & aloop_mask], dvr[ind_phi & aloop_mask], 'ro')
-        #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & ~aloop_mask], dvr[ind_phi & ~aloop_mask], 'ko')
-        
-        #ind_phi = np.abs(cg.phi1.wrap_at(180*u.deg) - phi1_list[0]) < delta_phi1
-        #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & aloop_mask], dvr[ind_phi & aloop_mask], 'ro')
-        #plt.plot(cg.phi1.wrap_at(wangle).value[ind_phi & ~aloop_mask], dvr[ind_phi & ~aloop_mask], 'ko')
-    
-    #plt.plot(cg.phi1.wrap_at(wangle).value[aloop_mask][indmin], dvr[aloop_mask][indmin], 'r*', ms=20)
-    #plt.plot(cg.phi1.wrap_at(wangle).value[aloop_mask][indmax], dvr[aloop_mask][indmax], 'r*', ms=20)
+
     vr0_ = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
     dvr_stream = vr0_ - vr_stream
     dvr_spur = vr0_ - vr_spur
-    #dvr_stream = vr_stream
-    #dvr_spur = vr_spur
     plt.plot(phi1_list, dvr_stream, 'o', color='navy', ms=10)
     plt.plot(phi1_list, dvr_spur, 'o', color='orangered', ms=10)
-    #plt.errorbar(phi1_list.value, dvr_stream.to(u.km/u.s).value, yerr=sigma_vr.to(u.km/u.s).value, fmt='none', color='k')
-    #plt.errorbar(phi1_list.value, dvr_spur.to(u.km/u.s).value, yerr=sigma_vr.to(u.km/u.s).value, fmt='none', color='r')
-    
-    #plt.plot(cg.phi1.wrap_at(wangle).value, vr0 - dvr, 'o', color=colors[0])
-    #plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], vr0[loop_mask] - dvr[loop_mask], 'o', color=colors[1])
-    #plt.plot(phi1_list, vr_stream, 'o', color='navy', ms=10)
-    #plt.plot(phi1_list, vr_spur, 'o', color='orangered', ms=10)
     
     if chi_label:
         plt.text(0.95, 0.15, '$\chi^2_{{V_r}}$ = {:.2f}'.format(chi_vr), ha='right', transform=plt.gca().transAxes, fontsize='small')
@@ -1120,9 +1076,58 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
     plt.ylim(-3,3)
     plt.xlim(-60,-20)
-    #plt.xlim(-37.2,-29)
     
-    plt.tight_layout()
+    # energy = loop definition
+    plt.sca(ax[0][1])
+    plt.plot(cg.phi1.wrap_at(wangle).value, dE, 'o')
+    if colored:
+        plt.plot(cg.phi1.wrap_at(wangle).value[aloop_mask], dE[aloop_mask], 'o')
+    plt.ylabel('$\Delta$ E')
+    
+    lnl = -(fg*chi_gap + fs*chi_spur + fvr*chi_vr)
+    plt.text(0.9,0.8,'ln L = {:.1f}'.format(lnl), transform=plt.gca().transAxes, ha='right', fontsize='small')
+    
+    # pm phi1
+    plt.sca(ax[1][1])
+    
+    pm1_0 = np.interp(cg.phi1.wrap_at(wangle).value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.pm_phi1_cosphi2.to(u.mas/u.yr)[~aloop_mask][isort])*u.mas/u.yr
+    dpm1 = pm1_0 - cg.pm_phi1_cosphi2.to(u.mas/u.yr)
+    
+    plt.plot(cg.phi1.wrap_at(wangle).value, dpm1.value, 'o', color=colors[0])
+    if colored:
+        plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], dpm1[loop_mask], 'o', color=colors[1])
+
+    plt.ylim(-1,1)
+    plt.ylabel('$\Delta$ $\mu_{\phi_1}$ [mas yr$^{-1}$]')
+
+    #plt.plot(c.x.to(u.kpc), c.y.to(u.kpc), 'o')
+    #if colored:
+        #plt.plot(c.x.to(u.kpc)[loop_mask], c.y.to(u.kpc)[loop_mask], 'o') #, color='orange')
+    
+    #plt.xlabel('x [kpc]')
+    #plt.ylabel('y [kpc]')
+    
+    plt.sca(ax[2][1])
+    
+    pm2_0 = np.interp(cg.phi1.wrap_at(wangle).value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.pm_phi2.to(u.mas/u.yr)[~aloop_mask][isort])*u.mas/u.yr
+    dpm2 = pm2_0 - cg.pm_phi2.to(u.mas/u.yr)
+    
+    plt.plot(cg.phi1.wrap_at(wangle).value, dpm2.value, 'o', color=colors[0])
+    if colored:
+        plt.plot(cg.phi1.wrap_at(wangle).value[loop_mask], dpm2[loop_mask], 'o', color=colors[1])
+
+    plt.ylim(-1,1)
+    plt.xlabel('$\phi_1$ [deg]')
+    plt.ylabel('$\Delta$ $\mu_{\phi_2}$ [mas yr$^{-1}$]')
+    #cr = np.sqrt(c.x**2 + c.y**2)
+    #plt.plot(cr.to(u.kpc), c.z.to(u.kpc), 'o')
+    #if colored:
+        #plt.plot(cr.to(u.kpc)[loop_mask], c.z.to(u.kpc)[loop_mask], 'o') #, color='orange')
+    
+    #plt.xlabel('R [kpc]')
+    #plt.ylabel('z [kpc]')
+    
+    plt.tight_layout(h_pad=0)
     
     return fig, ax, chi_gap, chi_spur, chi_vr, np.sum(loop_quadrant), -(chi_gap + chi_spur + chi_vr)
     #return fig
@@ -1503,16 +1508,20 @@ def prior_transform(u):
 # diagnose nest
 from dynesty import utils as dyfunc
 
-def nest_extract(label='static', fvr=0, N=100000):
+def nest_extract(label='static', sqrt=False, fvr=0, N=100000):
     """"""
-    results = pickle.load(open('../data/gd1_static_unif_multi_dz0.5_N1000_v{:.1f}.pkl'.format(fvr), 'rb'), encoding='bytes')
+    if sqrt:
+        label_lnl = 'lnl_sqrt'
+    else:
+        label_lnl = ''
+    results = pickle.load(open('../data/gd1{:s}_static_unif_multi_dz0.5_N1000_g1_s1_v{:.1f}.pkl'.format(label_lnl, fvr), 'rb'), encoding='bytes')
 
     # Extract sampling results.
     samples = results[b'samples']  # samples
     weights = np.exp(results[b'logwt'] - results[b'logz'][-1])  # normalized weights
     samples_equal = dyfunc.resample_equal(samples, weights)
 
-    np.savez('../data/gd1_samples_{:s}_vr{:.1f}'.format(label, fvr), samples=samples_equal)
+    np.savez('../data/gd1{:s}_samples_{:s}_vr{:.1f}'.format(label_lnl, label, fvr), samples=samples_equal)
     
 def nest_reload():
     """"""
@@ -1528,20 +1537,20 @@ def nest_corner(fvr=0):
     labels = ['$T_{impact}$ [Gyr]', 'b [pc]', 'b$_\phi$ [rad]', 'V [km s$^{-1}$]', 'V$_\phi$ [rad]', 'log M/M$_\odot$', 'r$_s$ [pc]', 'T$_{gap}$ [Myr]']
     limits = [[0,3], [0,50], [0,2*np.pi], [0,400], [0,2*np.pi], [5,8], [0,30], [7.5,10.5]]
 
-    b = samples[:,1]
-    bphi = samples[:,2]
-    v = samples[:,3]
-    vphi = samples[:,4]
-    samples[:,1] = b*np.cos(bphi)
-    samples[:,2] = b*np.sin(bphi)
-    samples[:,3] = v*np.cos(vphi)
-    samples[:,4] = v*np.sin(vphi)
-    labels = ['$T_{impact}$ [Gyr]', 'b$_x$ [pc]', 'b$_y$ [pc]', 'V$_x$ [km s$^{-1}$]', 'V$_y$ [km s$^{-1}]$', 'log M/M$_\odot$', 'r$_s$ [pc]', 'T$_{gap}$ [Myr]']
-    limits = [[0,3], [-50,50], [-50,50], [-400,400], [-400,400], [5,8], [0,30], [7.5,10.5]]
+    #b = samples[:,1]
+    #bphi = samples[:,2]
+    #v = samples[:,3]
+    #vphi = samples[:,4]
+    #samples[:,1] = b*np.cos(bphi)
+    #samples[:,2] = b*np.sin(bphi)
+    #samples[:,3] = v*np.cos(vphi)
+    #samples[:,4] = v*np.sin(vphi)
+    #labels = ['$T_{impact}$ [Gyr]', 'b$_x$ [pc]', 'b$_y$ [pc]', 'V$_x$ [km s$^{-1}$]', 'V$_y$ [km s$^{-1}]$', 'log M/M$_\odot$', 'r$_s$ [pc]', 'T$_{gap}$ [Myr]']
+    #limits = [[0,3], [-50,50], [-50,50], [-400,400], [-400,400], [5,8], [0,30], [7.5,10.5]]
     
     plt.close()
-    corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
-    #corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, range=limits, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
+    #corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
+    corner.corner(samples, bins=30, plot_datapoints=False, smooth=1, range=limits, show_titles=True, labels=labels, title_kwargs={'fontsize':'small'}, title_fmt='.1f')
     
     plt.tight_layout(h_pad=0, w_pad=0)
     plt.savefig('../plots/dycorner_static_lnl_vr{:.1f}.png'.format(fvr))
@@ -1553,7 +1562,7 @@ def nest_perturber_present_table(N=1000, verbose=False, fvr=0):
     # load perturber properties
     s = np.load('../data/gd1_samples_static_vr{:.1f}.npz'.format(fvr))
     chain = s['samples']
-    ind = np.cos(chain[:,4])>0
+    ind = np.cos(chain[:,4])<0
     chain = chain[ind]
     units = [u.Gyr, u.pc, u.rad, u.km/u.s, u.rad, u.Msun, u.pc, u.Myr]
 
@@ -1628,6 +1637,7 @@ def nest_perturber_present_table(N=1000, verbose=False, fvr=0):
     
     tout.pprint()
     tout.write('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N), overwrite=True)
+
 
 # chain diagnostics
 
@@ -1809,6 +1819,9 @@ def actime(label=''):
     x = sampler['chain']
     print(emcee.autocorr.integrated_time(x))
 
+
+# model diagnostics
+
 def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True, old=False, bpos=True):
     """"""
     chain = np.load('../data/unique_samples{}.npz'.format(label))['chain']
@@ -1984,6 +1997,173 @@ def check_model(fiducial=False, label='', rand=True, Nc=10, fast=True, old=False
         
         plt.savefig('../plots/model_diag/likelihood_b{:d}_r{:d}_{}.png'.format(bpos, rand, k), dpi=200)
 
+def check_nest_model(fvr=1, sqrt=False, flag='', N=1):
+    """"""
+    if sqrt:
+        label_lnl = 'lnl_sqrt'
+    else:
+        label_lnl = ''
+    samples = np.load('../data/gd1{:s}_samples_static_vr{:.1f}.npz'.format(label_lnl, fvr))['samples']
+    
+    if flag=='vxplus':
+        ind = np.cos(samples[:,4])>0
+    elif flag=='vxminus':
+        ind = np.cos(samples[:,4])<=0
+    elif flag=='vxp_mass':
+        ind = (np.cos(samples[:,4])>0) & (np.abs(samples[:,5]-6.9)<0.1)
+    elif flag=='vxm_mass':
+        ind = (np.cos(samples[:,4])<=0) & (np.abs(samples[:,5]-6.9)<0.1)
+    elif flag=='old':
+        ind = samples[:,0]>1.8
+    elif flag=='age3':
+        ind = (samples[:,0]>1) & (samples[:,0]<1.4)
+    elif flag=='age2':
+        ind = (samples[:,0]>0.6) & (samples[:,0]<1)
+    elif flag=='young':
+        ind = samples[:,0]<0.6
+    else:
+        ind = np.ones_like(samples[:,0],dtype=int)
+    
+    samples = samples[ind]
+    
+    _, iuniq = np.unique(samples[:,0], return_index=True)
+    samples = samples[iuniq]
+    print(np.shape(samples))
+    
+    # parameters for the likelihood call
+    fs = 1
+    fg = 1
+    fvr = 1
+    Nstream = 1000
+    
+    pkl = Table.read('../data/gap_present.fits')
+    xunit = pkl['x_gap'].unit
+    vunit = pkl['v_gap'].unit
+    c = coord.Galactocentric(x=pkl['x_gap'][0]*xunit, y=pkl['x_gap'][1]*xunit, z=pkl['x_gap'][2]*xunit, v_x=pkl['v_gap'][0]*vunit, v_y=pkl['v_gap'][1]*vunit, v_z=pkl['v_gap'][2]*vunit, **gc_frame_dict)
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    xgap = np.array([w0.pos.x.si.value, w0.pos.y.si.value, w0.pos.z.si.value])
+    vgap = np.array([w0.vel.d_x.si.value, w0.vel.d_y.si.value, w0.vel.d_z.si.value])
+    
+    # load orbital end point
+    pkl = Table.read('../data/short_endpoint.fits')
+    xend = np.array(pkl['xend'])
+    vend = np.array(pkl['vend'])
+    
+    dt_coarse = 0.5*u.Myr
+    #Tstream = 56*u.Myr
+    #Tgap = 29.176*u.Myr
+    Tstream = 16*u.Myr
+    Tgap = 9.176*u.Myr
+    N2 = int(Nstream*0.5)
+    dt_stream = Tstream/Nstream
+    dt_fine = 0.05*u.Myr
+    wangle = 180*u.deg
+    Tenc = 0.01*u.Gyr
+    
+    # gap comparison
+    #bins = np.linspace(-60,-20,30)
+    bins = np.linspace(-55,-25,20)
+    bc = 0.5 * (bins[1:] + bins[:-1])
+    Nb = np.size(bc)
+    Nside_min = 5
+    f_gap = 0.5
+    delta_phi2 = 0.5
+    
+    gap = np.load('../data/gap_properties.npz')
+    phi1_edges = gap['phi1_edges']
+    gap_position = gap['position']
+    gap_width = gap['width']
+    gap_yerr = gap['yerr']
+    base_mask = ((bc>phi1_edges[0]) & (bc<phi1_edges[1])) | ((bc>phi1_edges[2]) & (bc<phi1_edges[3]))
+    hat_mask = (bc>phi1_edges[4]) & (bc<phi1_edges[5])
+    
+    p = np.load('../data/polytrack.npy')
+    poly = np.poly1d(p)
+    x_ = np.linspace(-100,0,100)
+    y_ = poly(x_)
+    
+    # spur comparison
+    sp = np.load('../data/spur_track.npz')
+    spx = sp['x']
+    spy = sp['y']
+    phi2_err = 0.2
+    phi1_min = -50*u.deg
+    phi1_max = -30*u.deg
+    percentile1 = 3
+    percentile2 = 92
+    quad_phi1 = -32*u.deg
+    quad_phi2 = 0.8*u.deg
+    Nquad = 1
+    
+    # vr comparison
+    pkl = pickle.load(open('../data/vr_unperturbed.pkl', 'rb'))
+    phi1_list = pkl['phi1_list']
+    delta_phi1 = pkl['delta_phi1']
+    delta_phi1 = 1.5*u.deg
+    mu_vr = pkl['mu_vr']
+    sigma_vr = pkl['sigma_vr']
+
+    # tighten likelihood
+    #delta_phi2 = 0.1
+    phi2_err = 0.15
+    percentile1 = 1
+    percentile2 = 90
+    delta_phi1 = 0.3*u.deg
+    sigma_vr = np.array([0.15, 0.15])*u.km/u.s
+    
+    potential = 3
+    Vh = 225*u.km/u.s
+    q = 1*u.Unit(1)
+    rhalo = 0*u.pc
+    par_pot = np.array([Vh.to(u.m/u.s).value, q.value, rhalo.to(u.m).value])
+    
+    chigap_max = 0.6567184385873621
+    chispur_max = 1.0213837095314207
+    
+    chigap_max = 0.8
+    chispur_max = 1.2
+    
+    # parameters to sample
+    t_impact = 0.48*u.Gyr
+    M = 6.7e6*u.Msun
+    rs = 0.66*u.pc
+    bx = 22*u.pc
+    by = -3.3*u.pc
+    vx = 240*u.km/u.s
+    vy = 17*u.km/u.s
+    b = 20*u.pc
+    bphi = 0.1*u.rad
+    v = 200*u.km/u.s
+    vphi = 0.2*u.rad
+
+    potential_perturb = 2
+    if potential_perturb==1:
+        #params_list = [t_impact, bx, by, vx, vy, M, Tgap]
+        params_list = [t_impact, b, bphi, v, vphi, M, Tgap]
+    elif potential_perturb==2:
+        #params_list = [t_impact, bx, by, vx, vy, M, rs, Tgap]
+        params_list = [t_impact, b, bphi, v, vphi, M, rs, Tgap]
+    params_units = [p_.unit for p_ in params_list]
+    params = [p_.value for p_ in params_list]
+    params[5] = np.log10(params[5])
+    
+    model_args = [params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb]
+    gap_args = [poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, fg]
+    spur_args = [N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, fs]
+    vr_args = [phi1_list, delta_phi1, mu_vr, sigma_vr, fvr]
+    lnp_args = [chigap_max, chispur_max]
+    lnprob_args = model_args + gap_args + spur_args + vr_args + lnp_args
+    
+    # plot models
+    for i in range(N):
+        x = samples[i]
+        print(i, x)
+        fig = lnprob_verbose(x, *lnprob_args, colored=True)
+        
+        plt.suptitle('  '.join(['{:.2g} {}'.format(x_, u_) for x_, u_ in zip(x,params_units)]), fontsize='medium')
+        plt.tight_layout(rect=[0,0,1,0.96])
+        
+        plt.savefig('../plots/model_diag/likelihood_nest{:s}_{:s}_{:04d}.png'.format(label_lnl, flag, i), dpi=200)
 
 # perturber @ present
 
@@ -2285,6 +2465,25 @@ def present_sky(label='dynesty_vr', fvr=0, N=2000, step=0):
     fig = plt.figure(figsize=(12,5.2))
     ax = fig.add_subplot(111, projection='mollweide')
     
+    lw = [0.5,1,2,1,0.5]
+    for e, b in enumerate([-60,-30,0,30,60]):
+        cdisk = coord.Galactic(l=np.linspace(0,360,100)*u.deg, b=b*np.ones(100)*u.deg)
+        cdisk_eq = cdisk.transform_to(coord.ICRS)
+        if b<-20:
+            isort = np.arange(100, dtype=int)
+        elif b>0:
+            isort = np.arange(100, dtype=int)[::-1]
+            #isort = np.argsort(cdisk_eq.ra.wrap_at(wangle))[::-1]
+        else:
+            isort = np.argsort(cdisk_eq.ra.wrap_at(wangle))
+        
+        if b>0:
+            ind = cdisk_eq.ra.wrap_at(wangle)[isort]>0
+            plt.plot(cdisk_eq.ra.wrap_at(wangle)[isort][ind].radian, cdisk_eq.dec[isort][ind].radian, 'k-', alpha=0.5, lw=lw[e])
+            plt.plot(cdisk_eq.ra.wrap_at(wangle)[isort][~ind].radian, cdisk_eq.dec[isort][~ind].radian, 'k-', alpha=0.5, lw=lw[e])
+        else:
+            plt.plot(cdisk_eq.ra.wrap_at(wangle)[isort].radian, cdisk_eq.dec[isort].radian, 'k-', alpha=0.5, lw=lw[e])
+
     im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=t['M'], zorder=0, s=14, vmin=6.5, vmax=7.5, cmap='magma', label=label)
     if step>2:
         # running median
@@ -2319,7 +2518,7 @@ def present_sky(label='dynesty_vr', fvr=0, N=2000, step=0):
     cb = fig.colorbar(im, ax=ax, pad=0.04, aspect=20)
     cb.set_label('log M$_{perturb}$ / M$_\odot$')
     
-    #plt.savefig('../plots/lgray_ucon/perturber_today_sgr_{:d}.png'.format(step), dpi=200)
+    plt.savefig('../plots/nest_perturber_today_sgr_{:d}.png'.format(step), dpi=200)
 
 def present_sgr_old(label='dvr_lila_v500_w200', N=1000, step=0):
     """"""

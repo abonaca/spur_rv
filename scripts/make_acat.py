@@ -128,22 +128,34 @@ def make_gd1_acat():
     for i, b in enumerate("GRIZY"):
         band = "PS_{}".format(b)
         flux, err = aa["ucal_fluxqz.median"][:, i], aa["ucal_fluxqz.err"][:, i]
+        ind = flux==0
+        flux[ind] = np.nan
+        err[ind] = np.nan
         st[band] = np.clip(-2.5 * np.log10(flux), 0.0, np.inf)
         st[band + "_ERR"] = 1.086 * err / flux
     for i, b in enumerate("UGRIZ"):
         band = "SDSS_{}".format(b)
-        flux = aa["sdss_dr14_starsweep.psfflux"][:, i] * 1e-9,
+        flux = aa["sdss_dr14_starsweep.psfflux"][:, i] * 1e-9
         err = 1. / np.sqrt(aa["sdss_dr14_starsweep.psfflux_ivar"][:, i]) * 1e-9
+        ind = flux==0
+        flux[ind] = np.nan
+        err[ind] = np.nan
         st[band] = np.clip(-2.5 * np.log10(flux), 0.0, np.inf)
         st[band + "_ERR"] = 1.086 * err / flux
     for i, b in enumerate("JHK"):
         band = "TMASS_{}".format(b)
         st[band] = aa["tmass.{}_m".format(b.lower())]
         st[band + "_ERR"] = aa["tmass.{}_msigcom".format(b.lower())]
+        ind = st[band]==0
+        st[band][ind] = np.nan
+        st[band + "_ERR"][ind] = np.nan
     for i, b in enumerate(["W1", "W2"]):
         band = "WISE_{}".format(b)
         st[band] = aa["allwise.{}mpro".format(b.lower())]
         st[band + "_ERR"] = aa["allwise.{}sigmpro".format(b.lower())]
+        ind = st[band]==0
+        st[band][ind] = np.nan
+        st[band + "_ERR"][ind] = np.nan
     
     eq = ["PARALLAX", "PMRA", "PMDEC"]#, "RA", "DEC"]
     eq += ["PHOT_{}_MEAN_FLUX".format(b) for b in ["G", "BP", "RP"]]
@@ -162,6 +174,7 @@ def make_gd1_acat():
     #tout = Table(st)
     #tout.pprint()
     #print(tout.colnames)
+    #print(tout['PS_G'], np.sum(np.isfinite(tout['PS_G'])))
     
     out = '../data/acat_gd1_cluster.fits'
     fits.writeto(out, st, overwrite=True)
