@@ -14,8 +14,10 @@ from astropy.io import fits
 from astropy.constants import c
 
 import pickle
-from Payne.fitting.genmod import GenMod
-from dynesty import plotting as dyplot
+import glob
+
+#from Payne.fitting.genmod import GenMod
+#from dynesty import plotting as dyplot
 
 
 def inspect_nights(itarget=27):
@@ -465,4 +467,296 @@ def check_dist(field=3, rank=4, star=23017):
     
     pkl = pickle.load(open('../data/inputs/gd1_{}_rank.{}_object.{}.input'.format(field, rank, star), 'rb'))
     print(pkl['misc']['fiber'])
+
+
+# 2019 data
+
+def plot_sky(n=5, ex=1, mem=False):
+    """"""
+    
+    date = glob.glob('../data/tiles/gd1_{:1d}/d*'.format(n))[0].split('/')[-1]
+    dr = '../data/tiles/gd1_{:d}/{:s}/reduced/v3.0/'.format(n, date)
+    fname = 'specptg_gd1_{:d}_cluster_{:s}.ex{:1d}.fits'.format(n, date, ex)
+    
+    hdu = fits.open(dr+fname)
+    
+    w = hdu[0].data / (1 + hdu[0].header['HELIO_RV']/c.to(u.km/u.s).value)
+    f = hdu[1].data
+    sky = hdu[4].data
+    
+    # science fibers
+    t = Table.read('../data/master_catalog.fits')
+    t = t[t['field']==n]
+    if mem:
+        ind = (t['priority']<=3) & (t['delta_Vrad']>-20) & (t['delta_Vrad']<0)
+        t = t[ind]
+    
+    plt.close()
+    plt.figure(figsize=(12,6))
+    for i in range(240):
+        if i in t['fibID']:
+            color = 'r'
+            alpha = 0.02
+            if mem:
+                alpha = 0.6
+        else:
+            color = 'k'
+            alpha = 0.07
+            if mem:
+                alpha = 0.02
+        plt.plot(w[i], sky[i], '-', color=color, alpha=alpha)
+    
+    w_test = np.linspace(8000,8200,2)
+    s_test = np.ones(2) * 20
+    if mem:
+        plt.plot(w_test, s_test, 'r-', label='Members')
+        plt.plot(w_test, s_test, 'k-', label='Other fibers')
+    else:
+        plt.plot(w_test, s_test, 'r-', label='Target')
+        plt.plot(w_test, s_test, 'k-', label='Sky')
+    
+    plt.legend(loc=3, ncol=2)
+    plt.xlabel('Wavelength [$\AA$]')
+    plt.ylabel('Flux')
+    
+    #ylims = plt.gca().get_ylim()
+    #ylims[0] = 0
+    plt.gca().set_ylim(bottom=-10)
+    plt.xlim(5197, 5201)
+    #plt.xlim(5197, 5198)
+    
+    plt.tight_layout()
+    #plt.savefig('../plots/sky_gd1_{:d}_ex{:d}_mem{:d}.png'.format(n, ex, mem))
+    
+def plot_sky_ptgs(mem=False):
+    """Plot sky spectra in all fibers for all gd-1 exposures"""
+    
+    for i in range(8):
+        for j in range(3):
+            plot_sky(n=i+1, ex=j+1, mem=mem)
+
+def find_skyline(n=5, ex=1, itarget=0):
+    """"""
+    date = glob.glob('../data/tiles/gd1_{:1d}/d*'.format(n))[0].split('/')[-1]
+    dr = '../data/tiles/gd1_{:d}/{:s}/reduced/v3.0/'.format(n, date)
+    fname = 'specptg_gd1_{:d}_cluster_{:s}.ex{:1d}.fits'.format(n, date, ex)
+    hdu = fits.open(dr+fname)
+    
+    w0 = hdu[0].data
+    #w0 = hdu[0].data / (1 + hdu[0].header['HELIO_RV']/c.to(u.km/u.s).value)
+    w = hdu[0].data / (1 + hdu[0].header['HELIO_RV']/c.to(u.km/u.s).value)
+    f = hdu[1].data
+    sky = hdu[4].data
+    spec = f + sky
+    spec = sky
+    
+    # sky line catalog
+    tl = Table.read('../data/gident_580L.dat', format='ascii.fixed_width', header_start=1, data_start=3, data_end=91, delimiter=' ')
+    
+    # targets
+    t = Table.read('../data/master_catalog.fits')
+    t = t[t['field']==n]
+    fibid = t['fibID'] - 1
+    
+    pp = PdfPages('../plots/sky_lines.f{:}.e{:}.pdf'.format(n, ex))
+    
+    for itarget in range(len(t)):
+        plt.close()
+        fig = plt.figure(figsize=(15,6))
+        
+        plt.plot(w0[fibid][itarget], spec[fibid][itarget], 'k-', lw=0.5)
+        for i in range(len(tl)):
+            plt.axvline(tl['CENTER'][i], lw=1, alpha=0.5, color='r')
+        
+        plt.xlim(5140, 5310)
+        plt.xlabel('Wavelength [$\AA$]')
+        plt.ylabel('Flux [count]')
+        
+        plt.tight_layout()
+        pp.savefig(fig)
+    
+    pp.close()
+
+
+def plot_tellurics():
+    """"""
+    t = Table.read('../data/hitran_top7.hdf5')
+    tnames = Table.read('../docs/hitran_molecules.txt', format='ascii.no_header', delimiter='\t')
+    
+    w = (t['nu']**-1*u.cm).to(u.angstrom)
+    wind = (w>5000*u.angstrom) & (w<9000*u.angstrom)
+    t = t[wind]
+    w = w[wind]
+    mol_id = np.unique(t['molec_id'])
+
+    plt.close()
+    plt.figure(figsize=(15,6))
+    
+    for mid in mol_id:
+        ind = t['molec_id']==mid
+        plt.plot(w[ind], t['sw'][ind], 'o', ms=2, zorder=0, label=tnames['col3'][mid-1])
+    plt.axvspan(5150, 5300, color='tab:red', alpha=0.3, zorder=1, label='RV31')
+    
+    plt.legend(markerscale=3, fontsize='small', ncol=6)
+    plt.xlabel('Wavelength [$\AA$]')
+    plt.ylabel('Intensity [cm$^{-1}$/(molec.cm$^{-2}$)]')
+    
+    plt.xlim(5000,9000)
+    plt.ylim(1e-29, 1e-20)
+    plt.gca().set_yscale('log')
+    plt.tight_layout()
+    plt.savefig('../plots/telluric_lines.png', dpi=200)
+
+
+def get_date(n):
+    """Get date when the field was observed (assumes no repeats)"""
+    
+    return glob.glob('/home/ana/data/hectochelle/tiles/gd1_{:d}/d*'.format(n))[0].split('/')[-1]
+
+def ccd_temp(verbose=False):
+    """Print CCD temperature during individual exposures"""
+    
+    fields = np.arange(1,9,1,dtype=int)
+    dates = [get_date(n_) for n_ in fields]
+    if verbose:
+        print(fields)
+        print(dates)
+    
+    for e, n in enumerate(fields):
+        for i in range(3):
+            hdu = fits.open('/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.ex{2:1d}.fits'.format(n, dates[e], i+1))
+            print(n, i, hdu[0].header['CCDTEMP'], hdu[0].header['ROTANGLE'], hdu[0].header['POSANGLE'], hdu[0].header['HA'], hdu[0].header['PARANGLE'])
+
+def hdr():
+    """"""
+    n = 6
+    date = get_date(6)
+    i = 0
+    hdu = fits.open('/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.ex{2:1d}.fits'.format(n, date, i+1))
+    print(hdu[0].header.keys)
+
+
+from vel import get_members
+
+def mem_fnames():
+    """"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    mem = get_members(t)
+    t = t[mem]
+    
+    print(t.colnames, len(t))
+    #print(t['starname'], t['fibID'], t['field'])
+    
+    spurfields = [2,4,5,6]
+    dates = [get_date(n_) for n_ in spurfields]
+    
+    plt.close()
+    #plt.figure(figsize=(16,8))
+    fig, ax = plt.subplots(4,1,figsize=(16,16), sharex=True)
+    
+    for e, n in enumerate(spurfields[:]):
+        ind = (t['field']==n) #& (t['SNR']>3)
+        t_ = t[ind]
+        print(n, np.array(t_['fibID']),  np.median(t_['phi1']), np.median(t_['phi2']))
+        print(np.array(t_['delta_Vrad']))
+        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.ex1.fits'.format(n, dates[e])
+        #print(fname)
+        hdu = fits.open(fname)
+        
+        isort = np.argsort(t_['SNR'])
+        
+        plt.sca(ax[e])
+        for ef, fib in enumerate(np.array(t_['fibID'])):
+            #w = hdu[0].data[:,fib]
+            w = hdu[0].data[fib] / (1 + (hdu[0].header['HELIO_RV'] + t['Vrad'][ef])/c.to(u.km/u.s).value)
+            #w = w[fib]
+            flux = hdu[1].data[fib]
+            sky = hdu[4].data[fib]
+            allflux = flux + sky
+            
+            plt.plot(w, allflux, '-', color=mpl.cm.gray(ef/(len(t_)+1)), lw=0.5)
+            
+        #plt.errorbar(t_['phi1'], t_['Vrad'], yerr=t_['std_Vrad'], fmt='o')
+    
+    #plt.ylim(-100,-50)
+    plt.tight_layout(h_pad=0)
+    plt.savefig('../plots/spur_spectra.png', dpi=200)
+
+def spur_member_spectra():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    mem = get_members(t)
+    t = t[mem]
+    
+    spurfields = [2,4,5,6]
+    dates = [get_date(n_) for n_ in spurfields]
+    
+    for e, n in enumerate(spurfields[:]):
+        plt.close()
+        #fig, ax = plt.subplots(111,figsize=(10,10), sharex=True)
+        plt.figure(figsize=(10,10))
+    
+        ind = (t['field']==n) #& (t['SNR']>3)
+        t_ = t[ind]
+        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.ex1.fits'.format(n, dates[e])
+        hdu = fits.open(fname)
+        
+        isort = np.argsort(t_['SNR'])
+        
+        for ef, fib in enumerate(np.array(t_['fibID'])):
+            w = hdu[0].data[fib] / (1 + (hdu[0].header['HELIO_RV'] + t['Vrad'][ef])/c.to(u.km/u.s).value)
+            flux = hdu[1].data[fib]
+            sky = hdu[4].data[fib]
+            allflux = flux + sky
+            
+            plt.plot(w, allflux + ef*100, '-', color=mpl.cm.gray(ef/(len(t_)+1)), lw=0.5)
+        
+        plt.xlabel('Wavelength [$\AA$]')
+        plt.ylabel('Flux')
+        
+        plt.tight_layout()
+        plt.savefig('../plots/spur_{:d}_spectra.png'.format(n), dpi=150)
+
+def spur_member_spectra_exposures():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    mem = get_members(t)
+    t = t[mem]
+    
+    spurfields = [2,4,5,6]
+    dates = [get_date(n_) for n_ in spurfields]
+    
+    for e, n in enumerate(spurfields[:]):
+        ind = (t['field']==n) #& (t['SNR']>3)
+        t_ = t[ind]
+        
+        plt.close()
+        fig, ax = plt.subplots(len(t_), 1, figsize=(10,10), sharex=True)
+        
+        for ex in ['ex1', 'ex2', 'ex3', 'sum']:
+            fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, dates[e], ex)
+            hdu = fits.open(fname)
+            
+            for ef, fib in enumerate(np.array(t_['fibID'])):
+                plt.sca(ax[ef])
+                w = hdu[0].data[fib] / (1 + (hdu[0].header['HELIO_RV'] + t['Vrad'][ef])/c.to(u.km/u.s).value)
+                flux = hdu[1].data[fib]
+                sky = hdu[4].data[fib]
+                allflux = flux + sky
+                
+                if ex=='sum':
+                    plt.ylabel('Flux')
+                    lw = 2
+                    color = 'k'
+                else:
+                    lw = 0.5
+                    color = '0.5'
+                
+                plt.plot(w, allflux, '-', color=color, lw=0.5)
+
+        plt.xlabel('Wavelength [$\AA$]')
+        
+        plt.tight_layout()
+        plt.savefig('../plots/spur_{:d}_spectra_exposures.png'.format(n), dpi=150)
 
