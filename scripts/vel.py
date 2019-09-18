@@ -1677,6 +1677,7 @@ def get_members(t, full=False):
     vrmem = (t['delta_Vrad']<vrlims[0]) & (t['delta_Vrad']>vrlims[1])
     
     fehlims = np.array([-1.9,-2.8])
+    fehlims = np.array([-2.1,-2.8])
     fehmem = (t['FeH']<fehlims[0]) & (t['FeH']>fehlims[1])
     
     members = cmdmem & vrmem & fehmem
@@ -1686,6 +1687,39 @@ def get_members(t, full=False):
         return return_dict
     else:
         return members
+
+
+def spur_dvr_dep():
+    """Plot how delta radial velocity in the spur depends on various properties"""
+    t = Table.read('../data/master_catalog.fits')
+    mem = get_members(t)
+    t = t[mem]
+    
+    #print(t.colnames, len(t))
+    spurfields = [2,4,5,6]
+    ind = np.array([t['field']==x for x in spurfields])
+    ind_spur = np.sum(ind, axis=0, dtype=bool)
+    #t = t[ind_spur]
+    fields = np.unique(t['field'])
+    
+    params = ['logg', 'Teff', 'FeH', 'aFe']
+    
+    plt.close()
+    fig, ax = plt.subplots(4,1,figsize=(8,12), sharex=True, sharey=True)
+    
+    #for f in fields:
+        #t_ = t[t['field']==f]
+        ##plt.scatter(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), c=t_['logg'], s=20, cmap='magma', vmin=3, vmax=5)
+        #plt.scatter(t_['phi1'] - np.median(t_['phi1']), t_['Vrad'] - np.median(t_['Vrad']), c=t_['Teff'], s=20, cmap='magma')
+    #plt.scatter(t['phi1'], t['delta_Vrad'], c=t['logg'], s=40, cmap='magma', vmin=3, vmax=5)
+    for i in range(4):
+        plt.sca(ax[i])
+        plt.scatter(t['phi1'], t['Vrad'], c=t[params[i]], s=t['SNR']*8, cmap='magma') #, vmin=3, vmax=5)
+    
+    #plt.sca(ax[1])
+    #plt.scatter(t['phi1'], t['Vrad'], c=t['Teff'], s=t['SNR']*5, cmap='magma') #, vmin=3, vmax=5)
+    
+    plt.tight_layout(h_pad=0)
 
 # proper motions
 
