@@ -647,7 +647,7 @@ def mem_fnames():
     
     print(t.colnames, len(t))
     #print(t['starname'], t['fibID'], t['field'])
-    
+
     spurfields = [2,4,5,6]
     dates = [get_date(n_) for n_ in spurfields]
     
@@ -658,18 +658,23 @@ def mem_fnames():
     for e, n in enumerate(spurfields[:]):
         ind = (t['field']==n) #& (t['SNR']>3)
         t_ = t[ind]
-        print(n, np.array(t_['fibID']),  np.median(t_['phi1']), np.median(t_['phi2']))
-        print(np.array(t_['delta_Vrad']))
-        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.ex1.fits'.format(n, dates[e])
+        #print(n, np.array(t_['fibID']),  np.median(t_['phi1']), np.median(t_['phi2']))
+        #print(np.array(t_['delta_Vrad']))
+        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.sum.fits'.format(n, dates[e])
         #print(fname)
         hdu = fits.open(fname)
+        hdu.info()
+        #print(hdu[5].header.keys)
+        #print(hdu[5].data['FIBERID'])
         
         isort = np.argsort(t_['SNR'])
         
         plt.sca(ax[e])
         for ef, fib in enumerate(np.array(t_['fibID'])):
             #w = hdu[0].data[:,fib]
-            w = hdu[0].data[fib] / (1 + (hdu[0].header['HELIO_RV'] + t['Vrad'][ef])/c.to(u.km/u.s).value)
+            fib -= 1
+            w = hdu[0].data[fib] / (1 + (hdu[0].header['HELIO_RV'] + t_['Vrad'][ef])/c.to(u.km/u.s).value)
+            print(fib-1, hdu[5].data['OBJTYPE'][fib], hdu[5].data['FIBERID'][fib], hdu[0].header['HELIO_RV'], t_['Vrad'][ef],  t_['delta_Vrad'][ef])
             #w = w[fib]
             flux = hdu[1].data[fib]
             sky = hdu[4].data[fib]
@@ -680,6 +685,7 @@ def mem_fnames():
         #plt.errorbar(t_['phi1'], t_['Vrad'], yerr=t_['std_Vrad'], fmt='o')
     
     #plt.ylim(-100,-50)
+    #plt.xlim(5200,5225)
     plt.tight_layout(h_pad=0)
     plt.savefig('../plots/spur_spectra.png', dpi=200)
 
@@ -699,12 +705,13 @@ def spur_member_spectra():
     
         ind = (t['field']==n) #& (t['SNR']>3)
         t_ = t[ind]
-        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.ex1.fits'.format(n, dates[e])
+        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.sum.fits'.format(n, dates[e])
         hdu = fits.open(fname)
         
         isort = np.argsort(t_['SNR'])
         
         for ef, fib in enumerate(np.array(t_['fibID'])):
+            fib -= 1
             w = hdu[0].data[fib] / (1 + (hdu[0].header['HELIO_RV'] + t['Vrad'][ef])/c.to(u.km/u.s).value)
             flux = hdu[1].data[fib]
             sky = hdu[4].data[fib]
@@ -740,6 +747,7 @@ def spur_member_spectra_exposures():
             
             for ef, fib in enumerate(np.array(t_['fibID'])):
                 plt.sca(ax[ef])
+                fib -= 1
                 w = hdu[0].data[fib] / (1 + (hdu[0].header['HELIO_RV'] + t['Vrad'][ef])/c.to(u.km/u.s).value)
                 flux = hdu[1].data[fib]
                 sky = hdu[4].data[fib]
@@ -759,4 +767,75 @@ def spur_member_spectra_exposures():
         
         plt.tight_layout()
         plt.savefig('../plots/spur_{:d}_spectra_exposures.png'.format(n), dpi=150)
+
+def dvr_focal(selection='spur'):
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    mem = get_members(t)
+    t = t[mem]
+    
+    #print(t.colnames, len(t))
+    #print(t['starname'], t['fibID'], t['field'])
+
+    if selection=='spur':
+        fields = [2,4,5,6]
+    elif selection=='stream':
+        fields = [1,3,7,8]
+    else:
+        selection = 'all'
+        fields = np.arange(1,9,1)
+    
+    dates = [get_date(n_) for n_ in fields]
+    
+    p = np.polyfit(t['phi1'], t['Vrad'], 1)
+    poly = np.poly1d(p)
+    
+    plt.close()
+    fig, ax = plt.subplots(3,1,figsize=(12,9), sharex=True)
+    
+    for e, n in enumerate(fields[:]):
+        ind = (t['field']==n)
+        t_ = t[ind]
+        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.sum.fits'.format(n, dates[e])
+        hdu = fits.open(fname)
+        xfocal = hdu[5].data['XFOCAL'][t_['fibID']-1]
+        yfocal = hdu[5].data['YFOCAL'][t_['fibID']-1]
+        
+        x = np.zeros_like(xfocal)
+        y = np.zeros_like(xfocal)
+        angle = (float(hdu[0].header['ROTANGLE']) + float(hdu[0].header['POSANGLE'])) * u.deg
+        angle = 0*u.deg
+        R = np.array([[np.cos(angle), -np.sin(angle)],[np.sin(angle), np.cos(angle)]])
+        posin = np.vstack([xfocal, yfocal])
+        posout = np.matmul(R,posin)
+        x, y = posout
+        
+        p = np.polyfit(t_['phi1'], t_['Vrad'], 1)
+        poly = np.poly1d(p)
+        
+        plt.sca(ax[0])
+        plt.scatter(t_['phi1'], t_['Vrad'], c=np.arctan2(y,x), cmap='magma', s=0.5*np.sqrt(x**2 + y**2), vmin=-np.pi, vmax=np.pi)
+        plt.ylabel('$V_r$ [km s$^{-1}$]')
+        
+        plt.sca(ax[1])
+        #plt.scatter(t_['phi1'], t_['Vrad'] - np.median(t_['Vrad']), c=np.arctan2(y,x), cmap='magma', s=0.5*np.sqrt(x**2 + y**2), vmin=-np.pi, vmax=np.pi)
+        plt.scatter(t_['phi1'], t_['Vrad'] - poly(t_['phi1']), c=np.arctan2(y,x), cmap='magma', s=0.5*np.sqrt(x**2 + y**2), vmin=-np.pi, vmax=np.pi)
+        plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
+        plt.ylim(-10,10)
+        
+        plt.sca(ax[2])
+        plt.scatter(t_['phi1'], t_['delta_Vrad'], c=np.arctan2(y,x), cmap='magma', s=0.5*np.sqrt(x**2 + y**2), vmin=-np.pi, vmax=np.pi)
+        plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
+        
+    plt.xlabel('$\phi_1$ [deg]')
+    
+    plt.tight_layout()
+    plt.savefig('../plots/dvr_focal_angle_{:s}.png'.format(selection))
+
+
+
+
+
+
+
 
