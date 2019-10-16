@@ -896,7 +896,7 @@ def sky_fit_field(n=5, exp=3, coadd=False, i0=0):
     else:
         exp_label = 'ex{:d}'.format(exp)
 
-    fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, date, exp_label)
+    fname = '../data/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, date, exp_label)
     hdu = fits.open(fname)
     
     # available spectra
