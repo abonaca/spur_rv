@@ -887,7 +887,7 @@ def fit_line(w_, f_, v_, sky, n, exp, i, iline, nwalkers, nsteps, pool, outdir):
 
     del sampler
 
-def sky_fit_field(n=5, exp=3, coadd=False, i0=0):
+def sky_fit_field(n=5, exp=3, coadd=False, i0=0, nth=3):
     """"""
     # read in hdu data
     date = get_date(n)
@@ -927,7 +927,7 @@ def sky_fit_field(n=5, exp=3, coadd=False, i0=0):
             w_ = np.array(w[ind], dtype=float)
             f_ = np.array(fsky[ind], dtype=float)
             v_ = np.array(vsky[ind], dtype=float)
-            pool = Pool(processes=3)
+            pool = Pool(processes=nth)
             
             fit_line(w_, f_, v_, sky, n, exp, i, iline, nwalkers, nsteps, pool, outdir)
             
