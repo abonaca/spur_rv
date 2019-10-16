@@ -958,12 +958,14 @@ def sky_extract_offsets(n=5, exp=3, coadd=False):
     sky = [5197.928223, 5202.979004, 5224.145020, 5238.751953]
     
     # output table
-    t = Table(np.zeros((np.sum(ind_spec),6), dtype=float), names=('x', 'y', 'dvr0', 'dvr1', 'dvr2', 'dvr3'))
+    t = Table(np.zeros((np.sum(ind_spec),7), dtype=float), names=('fib', 'x', 'y', 'dvr0', 'dvr1', 'dvr2', 'dvr3'))
+    t['fib'].dtype = int
     
     for ii, i in enumerate(ids[ind_spec]):
         xfocal = hdu[5].data['XFOCAL'][i]
         yfocal = hdu[5].data['YFOCAL'][i]
         
+        t['fib'][ii] = i
         t['x'][ii] = xfocal
         t['y'][ii] = yfocal
         
@@ -989,13 +991,20 @@ def sky_extract_offsets(n=5, exp=3, coadd=False):
 def sky_offsets_plot(n=5, exp=3):
     """"""
     t = Table.read('../data/sky_offsets_field.{:d}.{:d}.fits'.format(n, exp))
+    #t.pprint()
     
     plt.close()
     fig, ax = plt.subplots(1,4,figsize=(16,5.5), sharex=True, sharey=True)
     
     for i in range(4):
         plt.sca(ax[i])
-        im = plt.scatter(t['x'], t['y'], c=t['dvr{:1d}'.format(i)], cmap='RdBu_r')
+        ind = t['fib']<120
+        med1 = np.median(t['dvr{:1d}'.format(i)][ind])
+        med2 = np.median(t['dvr{:1d}'.format(i)][~ind])
+        med = 0.5 * (med1 + med2)
+        print(i, med1, med2, np.abs(med1 - med2))
+        im = plt.scatter(t['x'][ind], t['y'][ind], c=t['dvr{:1d}'.format(i)][ind], cmap='RdBu_r', vmin=med-0.5, vmax=med+0.5, marker='o')
+        im = plt.scatter(t['x'][~ind], t['y'][~ind], c=t['dvr{:1d}'.format(i)][~ind], cmap='RdBu_r', vmin=med-0.5, vmax=med+0.5, marker='s')
         
         plt.xlabel('X')
         plt.gca().set_aspect('equal')
@@ -1038,7 +1047,10 @@ def plot_all_sky(n=5, exp=3, coadd=False):
     for ii, i in enumerate(ids[ind_spec]):
         w = np.array(hdu[0].data[i], dtype=float)
         fsky = np.array(hdu[4].data[i], dtype=float)
-        plt.plot(w, fsky + ii*5, 'k-', lw=0.5, alpha=0.8)
+        if i<120:
+            plt.plot(w, fsky + ii*5, 'k-', lw=0.5, alpha=0.8)
+        else:
+            plt.plot(w, fsky + ii*5, 'b-', lw=0.5, alpha=0.8)
     
     plt.xlim(5150, 5250)
     plt.ylim(0,1150)
