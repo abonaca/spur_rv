@@ -15,6 +15,9 @@ from astropy.constants import c
 
 import pickle
 import glob
+import scipy.interpolate
+from multiprocessing import Pool
+import emcee
 
 #from Payne.fitting.genmod import GenMod
 #from dynesty import plotting as dyplot
@@ -636,7 +639,552 @@ def hdr():
     print(hdu[0].header.keys)
 
 
+##################
+# field variations
+
+def choose_sky(n=1, exp=1, graph=False):
+    """Find sky fiber closest to the field center for a given exposure"""
+    
+    date = get_date(n)
+    fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.ex{2:1d}.fits'.format(n, date, exp)
+    hdu = fits.open(fname)
+
+    # find sky fiber closest to the center
+    ind_sky = hdu[5].data['OBJTYPE']=='SKY'
+    rfocal = np.sqrt(hdu[5].data['XFOCAL']**2 + hdu[5].data['YFOCAL']**2)
+    ind = np.argmin(rfocal[ind_sky])
+
+    # extract wavelength and total flux
+    w = hdu[0].data[ind_sky][ind]
+    flux = hdu[1].data[ind_sky][ind]
+    sky = hdu[4].data[ind_sky][ind]
+    allflux = flux + sky
+    
+    if graph:
+        plt.close()
+        plt.figure(figsize=(12,6))
+        plt.plot(w, allflux, 'k-', lw=0.5, alpha=1)
+        plt.plot(w, sky, 'r-', lw=0.5, alpha=1)
+        
+        mgb = [5167.321, 5172.684, 5183.604]
+        for m in mgb:
+            plt.axvline(m, color='navy', ls='-', zorder=0, lw=4, alpha=0.1)
+    
+    return (w, allflux)
+
+def run_sky_xcorr():
+    """"""
+    for i in range(8):
+        for exp in range(3):
+            sky_cross_correlation(n=i+1, exp=exp+1)
+
+def sky_cross_correlation(n=1, exp=1, graph=False):
+    """"""
+    
+    w_sky, f_sky = choose_sky(n=n, exp=exp)
+    
+    # data grid
+    date = get_date(n)
+    fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.ex{2:1d}.fits'.format(n, date, exp)
+    hdu = fits.open(fname)
+    
+    w = hdu[0].data
+    flux = hdu[1].data
+    sky = hdu[4].data
+    f = flux + sky
+    
+    # available spectra
+    objtype = hdu[5].data['OBJTYPE']
+    ind_spec = np.array([False if ('UNUSED' in x_) or ('REJECT' in x_) else True for x_ in objtype])
+    #ind_spec = objtype[ind_spec]=='SKY'
+    xfocal = hdu[5].data['XFOCAL'][ind_spec]
+    yfocal = hdu[5].data['YFOCAL'][ind_spec]
+    ind_sky = objtype[ind_spec]=='SKY'
+    
+    # rv list
+    rv = np.arange(-300,300,3)*u.km/u.s
+    rv = np.arange(-15,15,0.2)*u.km/u.s
+    cc = np.zeros(np.size(rv))
+    
+    nspec = np.sum(ind_spec)
+    delta_rv = np.zeros(nspec)
+    
+    # pick fiber
+    for i in range(nspec):
+        w_data = w[ind_spec][i]
+        f_data = f[ind_spec][i]
+        cc = np.zeros(np.size(rv))
+        
+        # clip to 5155 to 5295 AA
+        ind_clip = (w_data>5155) & (w_data<5295)
+        w_data = w_data[ind_clip]
+        f_data = f_data[ind_clip]
+        
+        for e, rv_ in enumerate(rv):
+            # shift wavelength
+            w_sky_shift = w_sky / (1 + (rv_/c).decompose())
+        
+            # interpolate sky flux
+            f_interp = scipy.interpolate.interp1d(w_sky_shift, f_sky)
+            f_sky_interp = f_interp(w_data)
+            f_sky_interp -= np.median(f_sky_interp)
+            
+            # cross-correlate
+            cc[e] = np.dot(f_data, f_sky_interp) / np.sqrt(np.dot(f_sky_interp, f_sky_interp))
+        
+        ind_max = np.argmax(cc)
+        delta_rv[i] = rv[ind_max].value
+        
+        np.savez('../data/cache/cc_perstar/field.{:02d}_exp.{:1d}_obj.{:03d}'.format(n, exp, i), rv=rv, cc=cc)
+
+    np.savez('../data/cache/cc_field.{:02d}_exp.{:1d}'.format(n,exp), x=xfocal, y=yfocal, drv=delta_rv, isky=ind_sky)
+
+    if graph:
+        plt.close()
+        plt.hist(delta_rv[~ind_sky], bins=np.arange(-300,300,3), histtype='step')
+        plt.hist(delta_rv[ind_sky], bins=np.arange(-300,300,3), histtype='step')
+
+def sky_dvr_histogram(zoom=False):
+    """"""
+    
+    if zoom:
+        vrbins = np.arange(-20,20,3)
+        vrbins = np.arange(-15,15,0.5)
+    else:
+        vrbins = np.arange(-300,300,3)
+    
+    plt.close()
+    fig, ax = plt.subplots(2,4,figsize=(14,7), sharex=True, sharey=True)
+    
+    for i in range(8):
+        irow = int(i/4)
+        icol = i%4
+        plt.sca(ax[irow][icol])
+        
+        for j in range(3):
+            din = np.load('../data/cache/cc_field.{:02d}_exp.{:1d}.npz'.format(i+1, j+1))
+            #plt.hist(din['drv'][din['isky']], bins=vrbins, histtype='step', color=mpl.cm.Blues_r(j/4), lw=2)
+            plt.hist(din['drv'], bins=vrbins, histtype='step', color=mpl.cm.Blues_r(j/4), lw=2)
+        
+        if irow==1:
+            plt.xlabel('$\Delta$ $V_r$ [km s$^{-1}$]')
+        if icol==0:
+            plt.ylabel('N')
+    
+    plt.tight_layout(h_pad=0, w_pad=0)
+    plt.savefig('../plots/sky_dvr_zoom.{:d}.png'.format(zoom), dpi=200)
+
+
+
+    #plt.scatter(xfocal[:30], yfocal[:30], c=delta_rv[:30], vmin=-50, vmax=50, cmap='RdBu', ec='k')
+
+def sky_xcorr_diag(n=1, i=0, exp=1):
+    """"""
+    f = np.load('../data/cache/cc_perstar/field.{:02d}_exp.{:d}_obj.{:03d}.npz'.format(n, exp, i))
+    
+    plt.close()
+    plt.plot(f['rv'], f['cc'], 'ko')
+    
+    plt.xlim(-20,20)
+    
+    plt.tight_layout()
+
+
+def normal(x, mu, std):
+    return (2*np.pi*std**2)**-0.5 * np.exp(-0.5 * (x-mu)**2 / std**2)
+
+def lnnormal(x, mu, std):
+    return -0.5 * (x-mu)**2 / std**2 - 0.5*np.log(2*np.pi) - np.log(std)
+
+def lnprior(p, w0):
+    abg, a, mu, std = p
+    if (np.abs(mu - w0)>1) | (std>0.6) | (std<0) | (abg<0) | (a<0):
+        return -np.inf
+    else:
+        return 0
+
+def gen_model(p, x):
+    abg, a, mu, std = p
+    ym = a * normal(x, mu, std) + abg
+    
+    return ym
+    
+def lnlike(p, x, y, yerr):
+    ym = gen_model(p, x)
+    lnl = lnnormal(y, ym, yerr)
+    
+    return lnl
+
+def lnprob(p, x, y, yerr, w0):
+    lp = lnprior(p, w0)
+    if not np.all(np.isfinite(lp)):
+        return -np.inf
+    
+    ll = lnlike(p, x, y, yerr)
+    if not np.all(np.isfinite(ll)):
+        return -np.inf
+    
+    return ll.sum() + lp
+
+def fit_line(w_, f_, v_, sky, n, exp, i, iline, nwalkers, nsteps, pool, outdir):
+    """"""
+    # initialize walkers
+    p0s = np.array([np.median(f_), 5, sky[iline], 0.05])
+    p0 = emcee.utils.sample_ball(p0s, [1e-3, 1e-3, 1e-3, 1e-3], nwalkers)
+    p0[:,:2] = np.abs(p0[:,:2])
+
+    sampler = emcee.EnsembleSampler(nwalkers, p0.shape[1], pool=pool,
+                                    log_prob_fn=lnprob, args=(w_, f_, v_, sky[iline]))
+    _ = sampler.run_mcmc(p0, nsteps)
+
+    # save sampler
+    out_dict = {'lnprobability': sampler.lnprobability, 'chain': sampler.chain, 'dim': sampler.ndim}
+    fname = 'sky_field.{:d}.{:d}_spec.{:03d}_line.{:d}'.format(n, exp, i, iline)
+    pickle.dump(out_dict, open('{:s}/{:s}.pkl'.format(outdir, fname), 'wb'))
+
+
+    # plot chains
+    names = [r'$\alpha_{bg}$', r'$\alpha$', r'$\mu$', r'$\sigma$']
+    plt.close()
+    fig, ax = plt.subplots(sampler.ndim, figsize=(10,10), sharex=True)
+
+    for k in range(sampler.ndim):
+        for walker in sampler.chain[..., k]:
+            ax[k].plot(walker, marker='', drawstyle='steps-mid', alpha=0.2)
+        ax[k].set_ylabel(names[k])
+
+    plt.sca(ax[sampler.ndim-1])
+    plt.xlabel('Step')
+
+    plt.tight_layout(h_pad=0)
+    plt.savefig('../plots/diag/chain_{:s}.png'.format(fname), dpi=80)
+
+
+    # plot best-fit
+    med = np.median(sampler.chain[:,1024:,:].reshape(-1,sampler.ndim), axis=0)
+    dlambda = med[2] - sky[iline]
+    dvr = (c*sky[iline]*(1/sky[iline] - 1/med[2])).to(u.km/u.s)
+
+    xm = np.linspace(np.min(w_), np.max(w_), 200)
+    ym = gen_model(med, xm)
+    ym_fid = gen_model(med - dlambda, xm)
+
+    plt.close()
+    plt.figure(figsize=(10,8))
+    plt.errorbar(w_, f_, yerr=v_, color='k', fmt='o', label='Sky spectrum')
+    plt.plot(xm, ym, '-', color='tab:orange', label='Best-fit')
+    plt.plot(xm, ym_fid, '--', color='tab:orange', label='Fiducial')
+    plt.axvline(sky[iline], ls='-', lw=5, color='tab:blue', alpha=0.5, label='Sky line')
+
+    plt.legend(loc=2, fontsize='small', handlelength=1, frameon=False)
+    plt.xlabel('Wavelength [$\AA$]')
+    plt.ylabel('Flux [a.u.]')
+    plt.text(0.95, 0.95, '$\Delta$ $V_r$ = {:.2f}'.format(dvr),
+             transform=plt.gca().transAxes, ha='right', va='top', fontsize='small')
+
+    plt.tight_layout()
+    plt.savefig('../plots/diag/fit_{:s}.png'.format(fname), dpi=80)
+
+    del sampler
+
+def sky_fit_field(n=5, exp=3, coadd=False, i0=0):
+    """"""
+    # read in hdu data
+    date = get_date(n)
+    if coadd:
+        exp_label = 'sum'
+    else:
+        exp_label = 'ex{:d}'.format(exp)
+
+    fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, date, exp_label)
+    hdu = fits.open(fname)
+    
+    # available spectra
+    objtype = hdu[5].data['OBJTYPE']
+    ind_spec = np.array([False if ('UNUSED' in x_) or ('REJECT' in x_) else True for x_ in objtype])
+    
+    # cutout sky lines, from: https://www.eso.org/observing/dfo/quality/UVES/uvessky/sky_5800L_2.html
+    sky = [5197.928223, 5202.979004, 5224.145020, 5238.751953]
+    dw = 1
+    
+    # sampling setup
+    nwalkers = 64
+    nsteps = 4096
+    nsteps = 2048
+    np.random.seed(94629)
+    outdir = '../data/cache/chains'
+    
+    # sample
+    ids = np.arange(np.size(ind_spec), dtype=int)
+    for i in ids[ind_spec][i0:]:
+        w = np.array(hdu[0].data[i], dtype=float)
+        fsky = np.array(hdu[4].data[i], dtype=float)
+        vsky = np.sqrt(np.abs(fsky))
+        
+        for iline, wline in enumerate(sky):
+            # select input data
+            ind = np.abs(w - wline)<dw
+            w_ = np.array(w[ind], dtype=float)
+            f_ = np.array(fsky[ind], dtype=float)
+            v_ = np.array(vsky[ind], dtype=float)
+            pool = Pool(processes=3)
+            
+            fit_line(w_, f_, v_, sky, n, exp, i, iline, nwalkers, nsteps, pool, outdir)
+            
+            pool.close()
+            pool.terminate()
+    
+def sky_extract_offsets(n=5, exp=3, coadd=False):
+    """"""
+    # read in hdu data
+    date = get_date(n)
+    if coadd:
+        exp_label = 'sum'
+    else:
+        exp_label = 'ex{:d}'.format(exp)
+
+    fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, date, exp_label)
+    hdu = fits.open(fname)
+    
+    # available spectra
+    objtype = hdu[5].data['OBJTYPE']
+    ind_spec = np.array([False if ('UNUSED' in x_) or ('REJECT' in x_) else True for x_ in objtype])
+    
+    # sampling setup
+    nwalkers = 64
+    nsteps = 2048
+    outdir = '../data/cache/chains'
+    ids = np.arange(np.size(ind_spec), dtype=int)
+    sky = [5197.928223, 5202.979004, 5224.145020, 5238.751953]
+    
+    # output table
+    t = Table(np.zeros((np.sum(ind_spec),6), dtype=float), names=('x', 'y', 'dvr0', 'dvr1', 'dvr2', 'dvr3'))
+    
+    for ii, i in enumerate(ids[ind_spec]):
+        xfocal = hdu[5].data['XFOCAL'][i]
+        yfocal = hdu[5].data['YFOCAL'][i]
+        
+        t['x'][ii] = xfocal
+        t['y'][ii] = yfocal
+        
+        for iline in range(4):
+            #iline = 1
+            fname = 'sky_field.{:d}.{:d}_spec.{:03d}_line.{:d}'.format(n, exp, i, iline)
+            sampler = pickle.load(open('{:s}/{:s}.pkl'.format(outdir, fname), 'rb'))
+            
+            med = np.median(sampler['chain'][:,1024:,:].reshape(-1,sampler['dim']), axis=0)
+            t['dvr{:1d}'.format(iline)][ii] = (c*sky[iline]*(1/sky[iline] - 1/med[2])).to(u.km/u.s).value
+    
+    t.write('../data/sky_offsets_field.{:d}.{:d}.fits'.format(n, exp), overwrite=True)
+    
+    plt.close()
+    fig, ax = plt.subplots(1,4,figsize=(16,4), sharex=True, sharey=True)
+    
+    for i in range(4):
+        plt.sca(ax[i])
+        plt.scatter(t['x'], t['y'], c=t['dvr{:1d}'.format(i)], cmap='RdBu_r')
+    
+    plt.tight_layout()
+
+def sky_offsets_plot(n=5, exp=3):
+    """"""
+    t = Table.read('../data/sky_offsets_field.{:d}.{:d}.fits'.format(n, exp))
+    
+    plt.close()
+    fig, ax = plt.subplots(1,4,figsize=(16,5.5), sharex=True, sharey=True)
+    
+    for i in range(4):
+        plt.sca(ax[i])
+        im = plt.scatter(t['x'], t['y'], c=t['dvr{:1d}'.format(i)], cmap='RdBu_r')
+        
+        plt.xlabel('X')
+        plt.gca().set_aspect('equal')
+        
+        divider = make_axes_locatable(plt.gca())
+        cax = divider.append_axes('top', size='3%', pad=0.1)
+        plt.colorbar(im, cax=cax, orientation='horizontal') #, ticks=np.arange(0,51,25))
+        plt.xlabel('$\Delta$ $V_r$ [km s$^{-1}$]')
+        plt.gca().xaxis.set_label_position('top')
+        plt.gca().xaxis.tick_top()
+
+    
+    plt.sca(ax[0])
+    plt.ylabel('Y')
+    
+    plt.tight_layout()
+    plt.savefig('../plots/sky_offsets_field.{:1d}_exp.{:1d}.png'.format(n, exp))
+
+def plot_all_sky(n=5, exp=3, coadd=False):
+    """"""
+    
+    # read in hdu data
+    date = get_date(n)
+    if coadd:
+        exp_label = 'sum'
+    else:
+        exp_label = 'ex{:d}'.format(exp)
+
+    fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, date, exp_label)
+    hdu = fits.open(fname)
+    
+    # available spectra
+    objtype = hdu[5].data['OBJTYPE']
+    ind_spec = np.array([False if ('UNUSED' in x_) or ('REJECT' in x_) else True for x_ in objtype])
+    ids = np.arange(np.size(ind_spec), dtype=int)
+    
+    plt.close()
+    plt.figure(figsize=(15,8))
+    
+    for ii, i in enumerate(ids[ind_spec]):
+        w = np.array(hdu[0].data[i], dtype=float)
+        fsky = np.array(hdu[4].data[i], dtype=float)
+        plt.plot(w, fsky + ii*5, 'k-', lw=0.5, alpha=0.8)
+    
+    plt.xlim(5150, 5250)
+    plt.ylim(0,1150)
+    plt.xlabel('Wavelength [$\AA$]')
+    plt.ylabel('Sky flux [a.u.]')
+    plt.title('Field {:1d} | Exposure {:1d}'.format(n, exp), fontsize='medium')
+    plt.tight_layout()
+    plt.savefig('../plots/diag/skyflux_field.{:1d}_exp.{:1d}.png'.format(n, exp), dpi=100)
+
+
+#######
+# Paper
 from vel import get_members
+
+def print_exptimes():
+    """"""
+    fields = np.arange(1,9,dtype=int)
+    dates = [get_date(n_) for n_ in fields]
+    
+    exptimes = np.zeros(8)
+    for e, n in enumerate(fields):
+        for i in range(3):
+            fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.ex{2:1d}.fits'.format(n, dates[e], i+1)
+            hdu = fits.open(fname)
+            exptimes[e] += hdu[0].header['exptime']
+    
+    print((exptimes*u.s).to(u.hr))
+
+def print_snr():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    p = np.percentile(t['SNR'], [5,10,50])
+    
+    print(' '.join('{:.1f}'.format(p_) for p_ in p))
+    
+    plt.close()
+    plt.figure(figsize=(12,9))
+    
+    plt.plot(t['g'], t['SNR'], 'ko')
+    plt.axhline(2, color='r', lw=2)
+
+def print_params():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    keys = t.colnames
+    ind0 = keys.index('Teff')
+    ind1 = keys.index('Para')
+    keys = keys[ind0:ind1+1]
+    keys = [x_ for x_ in keys if ('lerr' not in x_) and ('uerr' not in x_) and ('std' not in x_)]
+    print(keys)
+
+def print_precision():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    
+    for k in ['Vrad', 'FeH', 'aFe']:
+        m = t['std_{:s}'.format(k)]
+        print(k, np.percentile(m, [10,50,90]))
+
+def exhibit_spectra(verbose=False):
+    """Plot spectra at different SNR"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    g = Table(fits.getdata('/home/ana/projects/legacy/GD1-DR2/output/gd1_members.fits'))
+    
+    # find indices of percentile spectra among the members
+    mem = get_members(t)
+    tmem = t[mem]
+    p = np.percentile(tmem['SNR'], [90,50,10])
+    if verbose: print(' '.join('{:.1f}'.format(p_) for p_ in p))
+
+    pind = np.array([np.argmin(np.abs(tmem['SNR'] - p_)) for p_ in p])
+    if verbose:
+        print(pind, tmem['SNR'][pind])
+        print(tmem['std_Vrad'][pind])
+        print(tmem['std_FeH'][pind])
+        print(tmem['std_aFe'][pind])
+    
+    plt.close()
+    fig = plt.figure(figsize=(11,9))
+    gs1 = mpl.gridspec.GridSpec(1,1)
+    gs1.update(left=0.08, right=0.975, top=0.98, bottom=0.75)
+
+    gs2 = mpl.gridspec.GridSpec(3,1)
+    gs2.update(left=0.08, right=0.975, top=0.65, bottom=0.08, hspace=0.1)
+
+    ax0 = fig.add_subplot(gs1[0])
+    ax1 = fig.add_subplot(gs2[0])
+    ax2 = fig.add_subplot(gs2[1], sharex=ax1)
+    ax3 = fig.add_subplot(gs2[2], sharex=ax1)
+    plt.setp(ax1.get_xticklabels(), visible=False)
+    plt.setp(ax2.get_xticklabels(), visible=False)
+    ax = [ax0, ax1, ax2, ax3]
+    
+    # positions on the sky
+    plt.sca(ax[0])
+    plt.scatter(g['phi1'], g['phi2'], s=g['pmem']*2, c=g['pmem'], cmap='binary', vmin=0.5, vmax=1.1, label='Likely GD-1 members', zorder=0)
+    plt.plot(t['phi1'], t['phi2'], 'o', color='darkorange', ms=2, mec='none', label='Hectochelle targets', zorder=1)
+    
+    for i in range(8):
+        t_ = t[t['field']==i+1]
+        phi_off = 0.3
+        plt.text(np.median(t_['phi1'])+phi_off, np.median(t_['phi2'])+phi_off, '{:d}'.format(i+1), fontsize='small')
+    
+    plt.xlim(-53,-27)
+    plt.ylim(-3,3)
+    plt.gca().set_aspect('equal', adjustable='datalim')
+    plt.xlabel('$\phi_1$ [deg]')
+    plt.ylabel('$\phi_2$ [deg]')
+    
+    #customize the order of legend entries
+    handles, labels = plt.gca().get_legend_handles_labels()
+    order = [1,0]
+    handles = [handles[x] for x in order]
+    labels = [labels[x] for x in order]
+    plt.legend(handles, labels, loc=3, scatterpoints=1, frameon=False, fontsize='small', handlelength=0.5, markerscale=3)
+
+    for i in range(3):
+        plt.sca(ax[i+1])
+        plt.ylabel('Flux')
+        
+        # read in spectrum
+        n = tmem['field'][pind[i]]
+        date = get_date(n)
+        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.sum.fits'.format(n, date)
+        hdu = fits.open(fname)
+        
+        fib = tmem['fibID'][pind[i]] - 1
+        w = hdu[0].data[fib] / (1 + (hdu[0].header['HELIO_RV'] + tmem['Vrad'][pind[i]])/c.to(u.km/u.s).value)
+        flux = hdu[1].data[fib]
+        
+        plt.plot(w, flux, 'k-', lw=0.5, label='Observed')
+        
+        mgb = [5167.321, 5172.684, 5183.604]
+        labels = ['Mg b', '', '']
+        for e, m in enumerate(mgb):
+            plt.axvline(m, color='navy', ls='-', zorder=0, lw=4, alpha=0.1, label=labels[e])
+        
+        plt.text(0.025, 0.9, 'S/N = {:.1f}'.format(tmem['SNR'][pind[i]]), fontsize='small', transform=plt.gca().transAxes, va='top')
+    
+    plt.legend(loc=4, fontsize='small')
+    plt.xlim(5150,5300)
+    plt.xlabel('Wavelength [$\AA$]')
+    
+    plt.savefig('../paper/spectra.pdf')
+
 
 def mem_fnames():
     """"""
@@ -689,41 +1237,92 @@ def mem_fnames():
     plt.tight_layout(h_pad=0)
     plt.savefig('../plots/spur_spectra.png', dpi=200)
 
-def spur_member_spectra():
+def spur_member_spectra(spur=True, exp=1, lobs=True, coadd=False):
     """"""
     t = Table.read('../data/master_catalog.fits')
     mem = get_members(t)
     t = t[mem]
     
-    spurfields = [2,4,5,6]
+    if spur:
+        spurfields = [2,4,5,6]
+        field_label = 'spur'
+    else:
+        spurfields = [1,3,7,8]
+        field_label = 'stream'
+    #spurfields = np.arange(8,dtype=int) + 1
     dates = [get_date(n_) for n_ in spurfields]
     
     for e, n in enumerate(spurfields[:]):
+    #for e in [2,]:
+        n = spurfields[e]
         plt.close()
-        #fig, ax = plt.subplots(111,figsize=(10,10), sharex=True)
-        plt.figure(figsize=(10,10))
+        fig, ax = plt.subplots(2,1,figsize=(16,12))
     
-        ind = (t['field']==n) #& (t['SNR']>3)
+        ind = (t['field']==n) & (t['SNR']>3)
         t_ = t[ind]
-        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.sum.fits'.format(n, dates[e])
-        hdu = fits.open(fname)
+        #print(np.array(t_['Vrot']))
+        if coadd:
+            exp_label = 'sum'
+        else:
+            exp_label = 'ex{:d}'.format(exp)
         
-        isort = np.argsort(t_['SNR'])
+        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, dates[e], exp_label)
+        hdu = fits.open(fname)
         
         for ef, fib in enumerate(np.array(t_['fibID'])):
             fib -= 1
-            w = hdu[0].data[fib] / (1 + (hdu[0].header['HELIO_RV'] + t['Vrad'][ef])/c.to(u.km/u.s).value)
+            if lobs:
+                w = hdu[0].data[fib]
+            else:
+                w = hdu[0].data[fib] / (1 + (hdu[0].header['HELIO_RV'] + t_['Vrad'][ef])/c.to(u.km/u.s).value)
+                #w = hdu[0].data[fib] / (1 + (t_['Vrad'][ef])/c.to(u.km/u.s).value)
             flux = hdu[1].data[fib]
             sky = hdu[4].data[fib]
             allflux = flux + sky
             
-            plt.plot(w, allflux + ef*100, '-', color=mpl.cm.gray(ef/(len(t_)+1)), lw=0.5)
+            #print(hdu[0].header['HELIO_RV'] + t_['Vrad'][ef])
+            
+            for ea in range(2):
+                plt.sca(ax[ea])
+                plt.plot(w, allflux + ef*50, '-', color=mpl.cm.gray(ef/(len(t_)+1)), lw=1)
+                plt.plot(w, sky, ':', color=mpl.cm.gray(ef/(len(t_)+1)), lw=1)
         
-        plt.xlabel('Wavelength [$\AA$]')
+        plt.sca(ax[0])
+        mgb = [5167.321, 5172.684, 5183.604]
+        for m in mgb:
+            plt.axvline(m, color='navy', ls='-', zorder=0, lw=4, alpha=0.1)
+        
+        dv_array = np.array([1,5,10,20])*u.km/u.s
+        
+        for i, dv in enumerate(dv_array):
+            y_ = np.ones(2) * (-20*i - 30)
+            w_ = np.array([mgb[0]/(1 - (0.5*dv/c).decompose().value), mgb[0]/(1 + (0.5*dv/c).decompose().value)])
+        
+            plt.plot(w_, y_, 'k-')
+        
+        plt.text(0.05, 0.9, 'Mgb zoom', transform=plt.gca().transAxes)
         plt.ylabel('Flux')
+        plt.xlim(5160,5190)
+        
+        plt.sca(ax[1])
+        sky = [5197.928223, 5200.285645, 5202.979004]
+        for s in sky:
+            plt.axvline(s, color='navy', ls='-', zorder=0, lw=4, alpha=0.1)
+
+        for i, dv in enumerate(dv_array):
+            y_ = np.ones(2) * (-20*i - 30)
+            w_ = np.array([sky[0]/(1 - (0.5*dv/c).decompose().value), sky[0]/(1 + (0.5*dv/c).decompose().value)])
+        
+            plt.plot(w_, y_, 'k-')
+
+        plt.text(0.05, 0.9, 'Sky zoom', transform=plt.gca().transAxes)
+        lobs_label = ['RV shifted', 'Observed']
+        plt.xlabel('{:s} wavelength [$\AA$]'.format(lobs_label[lobs]))
+        plt.ylabel('Flux')
+        plt.xlim(5195,5205)
         
         plt.tight_layout()
-        plt.savefig('../plots/spur_{:d}_spectra.png'.format(n), dpi=150)
+        plt.savefig('../plots/{:s}_{:d}_spectra_{:s}_lobs{:d}.png'.format(field_label, n, exp_label, lobs), dpi=150)
 
 def spur_member_spectra_exposures():
     """"""
@@ -732,6 +1331,7 @@ def spur_member_spectra_exposures():
     t = t[mem]
     
     spurfields = [2,4,5,6]
+    spurfields = [1,]
     dates = [get_date(n_) for n_ in spurfields]
     
     for e, n in enumerate(spurfields[:]):
@@ -760,12 +1360,13 @@ def spur_member_spectra_exposures():
                 else:
                     lw = 0.5
                     color = '0.5'
+                    plt.plot(w, sky, '-', color='tab:blue', lw=0.5)
                 
                 plt.plot(w, allflux, '-', color=color, lw=0.5)
 
         plt.xlabel('Wavelength [$\AA$]')
         
-        plt.tight_layout()
+        plt.tight_layout(h_pad=0)
         plt.savefig('../plots/spur_{:d}_spectra_exposures.png'.format(n), dpi=150)
 
 def dvr_focal(selection='spur'):
