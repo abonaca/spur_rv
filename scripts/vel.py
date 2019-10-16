@@ -2224,6 +2224,12 @@ def diagnostic_summary(f=1, color_by='phi1', cmd_mem=True, return_figure=False):
     
     ticks_minor = [0.25, 2, 1]
     ticks_major = [0.5, 10, 5]
+    vlim = {'FeH': [-2.75, -2]}
+    # cap errorbar
+    t['std_Vrad'][t['std_Vrad']>3] = 3
+    ind = t['fibID']<=120
+    ichips = [ind, ~ind]
+    mchips = ['o', 's']
     
     for irow in range(3):
         for icol in range(2):
@@ -2233,17 +2239,23 @@ def diagnostic_summary(f=1, color_by='phi1', cmd_mem=True, return_figure=False):
             if color_by=='order':
                 plt.scatter(t[pairs[irow][icol][0]], t[pairs[irow][icol][1]], c=np.arange(len(tin[mem])), zorder=1, cmap='plasma', s=50, ec='k')
             else:
-                plt.scatter(t[pairs[irow][icol][0]], t[pairs[irow][icol][1]], c=t[color_by], zorder=1, cmap='plasma', s=50, ec='k')
+                for ii, ind_ in enumerate(ichips):
+                    plt.scatter(t[pairs[irow][icol][0]][ind_], t[pairs[irow][icol][1]][ind_], c=t[color_by][ind_], zorder=1, cmap='plasma', s=50, ec='k', vmin=vlim[color_by][0], vmax=vlim[color_by][1], marker=mchips[ii])
             
             plt.xlabel(labels[irow][icol][0])
             plt.ylabel(labels[irow][icol][1])
             plt.xlim(xlims[irow][icol])
             plt.ylim(ylims[irow][icol])
     
+        # insets
         icol = 0
         plt.sca(ax[irow][icol])
         axins = plt.gca().inset_axes([0.2, 0.1, 0.3, 0.8])
-        axins.scatter(t[pairs[irow][icol][0]], t[pairs[irow][icol][1]], c=t[color_by], zorder=5, cmap='plasma', s=50, ec='k')
+        for ii, ind_ in enumerate(ichips):
+            axins.scatter(t[pairs[irow][icol][0]][ind_], t[pairs[irow][icol][1]][ind_], c=t[color_by][ind_], zorder=5, cmap='plasma', s=50, ec='k', marker=mchips[ii], vmin=vlim[color_by][0], vmax=vlim[color_by][1])
+        if irow>0:
+            axins.errorbar(t[pairs[irow][icol][0]], t[pairs[irow][icol][1]], yerr=t['std_Vrad'], fmt='none', color='k', zorder=0)
+        
         axins.tick_params(labelleft=False, labelbottom=False)
         axins.yaxis.set_major_locator(mpl.ticker.MultipleLocator(ticks_major[irow]))
         axins.yaxis.set_minor_locator(mpl.ticker.MultipleLocator(ticks_minor[irow]))
@@ -2253,11 +2265,7 @@ def diagnostic_summary(f=1, color_by='phi1', cmd_mem=True, return_figure=False):
     irow = 2
     icol = 0
     plt.sca(ax[irow][icol])
-    #axins = plt.gca().inset_axes([0.2, 0.1, 0.3, 0.8])
-    #axins.scatter(t[pairs[irow][icol][0]], t[pairs[irow][icol][1]], c=t[color_by], zorder=5, cmap='plasma', s=50, ec='k')
-    #axins.tick_params(labelleft=False, labelbottom=False)
-    #axins.minorticks_on()
-    #axins.grid(b=True, which='both', axis='y', zorder=0)
+
     plt.text(0.1,0.1,'{:.1f}'.format(np.std(t[pairs[irow][icol][1]])), transform=plt.gca().transAxes)
     #plt.xlim(xlims[irow][icol])
     #plt.ylim(ylims[irow][icol])
