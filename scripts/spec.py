@@ -1023,6 +1023,55 @@ def sky_offsets_plot(n=5, exp=3):
     plt.tight_layout()
     plt.savefig('../plots/sky_offsets_field.{:1d}_exp.{:1d}.png'.format(n, exp))
 
+def sky_offset_summary():
+    """"""
+    
+    #alphas = [0.75, 0.5, 0.25]
+    colors = ['tab:blue', 'tab:red']
+    
+    pp = PdfPages('../plots/sky_offset_summary.pdf')
+    
+    for n in range(1,9):
+        plt.close()
+        fig, ax = plt.subplots(3,1,figsize=(8,10), sharex=True, sharey=True)
+        
+        for e in range(3):
+            t = Table.read('../data/sky_offsets_field.{:d}.{:d}.fits'.format(n, e+1))
+            ind_ = t['fib']<120
+            
+            w0 = np.array([5197.928223, 5202.979004, 5224.145020, 5238.751953])
+            dv_med = np.zeros((2, 4))
+            dv_std = np.zeros((2, 4))
+            
+            for i in range(4):
+                for j, ind in enumerate([ind_, ~ind_]):
+                    dv_med[j][i] = np.median(t['dvr{:1d}'.format(i)][ind])
+                    dv_std[j][i] = np.std(t['dvr{:1d}'.format(i)][ind])
+            
+            plt.sca(ax[e])
+            for i in range(2):
+                plt.errorbar(w0, dv_med[i], yerr=dv_std[i], color=colors[i], fmt='o', label='')
+                plt.fill_between(w0, dv_med[i] - dv_std[i], dv_med[i] + dv_std[i], alpha=0.3, color=colors[i], label='Chip {:1d}'.format(i+1))
+            
+            plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
+            plt.axhline(0, color='k', lw=2, alpha=0.5)
+            plt.text(0.05,0.85, 'Exposure {:1d}'.format(e+1), transform=plt.gca().transAxes, fontsize='small')
+            
+            plt.minorticks_on()
+            plt.gca().yaxis.set_minor_locator(mpl.ticker.MultipleLocator(1))
+        
+        plt.xlabel('Wavelength [$\AA$]')
+        plt.legend(fontsize='small')
+        
+        plt.sca(ax[0])
+        plt.text(0.95, 0.85, 'Field {:1d}'.format(n), transform=plt.gca().transAxes, fontsize='medium', ha='right')
+        
+        plt.tight_layout(h_pad=0)
+        pp.savefig(fig)
+    
+    pp.close()
+
+
 def plot_all_sky(n=5, exp=3, coadd=False):
     """"""
     
@@ -1033,7 +1082,7 @@ def plot_all_sky(n=5, exp=3, coadd=False):
     else:
         exp_label = 'ex{:d}'.format(exp)
 
-    fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, date, exp_label)
+    fname = '../data/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, date, exp_label)
     hdu = fits.open(fname)
     
     # available spectra
