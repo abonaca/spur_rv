@@ -1813,6 +1813,7 @@ def get_members(t, full=False):
     
     # feh selection
     fehlims = np.array([-2.8, -1.9])
+    fehlims = np.array([-2.8, -2.])
     #fehlims = np.array([-2.1, -2.8])
     fehmem = (t['FeH']>fehlims[0]) & (t['FeH']<fehlims[1])
     
@@ -2197,9 +2198,7 @@ def field_vr(field=1):
 def diagnostic_summary(f=1, color_by='phi1', cmd_mem=True, return_figure=False):
     """Summary plot per field"""
     tin = Table.read('../data/master_catalog.fits')
-    #print(tin.colnames)
-    
-#def br():
+
     if cmd_mem:
         md = get_members(tin, full=True)
         mem = md['vrmem'] & md['fehmem'] & md['pmmem']
@@ -2296,10 +2295,18 @@ def afeh_kinematics():
     mem = md['vrmem'] & md['fehmem'] & md['pmmem']
     t = t[mem]
     
+    spurfields = [2,4,5,6]
+    ind = np.array([t['field']==x for x in spurfields])
+    ind_spur = np.sum(ind, axis=0, dtype=bool)
+    ind_stream = ~ind_spur
+    ms = [10,6]
+    alpha = [0.5, 0.8]
+    colors = ['k', 'r']
+    
     p1 = [-2.6,0.5]
     p2 = [-2, 0]
-    p1 = [-2.7,0.4]
-    p2 = [-1.9, 0.2]
+    p1 = [-2.6,0.5]
+    p2 = [-2.1, 0.04]
     
     k = (p2[1] - p1[1])/(p2[0] - p1[0])
     l = p1[1] - k*p1[0]
@@ -2308,12 +2315,17 @@ def afeh_kinematics():
     plt.close()
     fig, ax = plt.subplots(2,1,figsize=(10,8))
     plt.sca(ax[0])
-    plt.plot(t['FeH'], t['aFe'], 'ko')
+    plt.plot(t['FeH'][~ind], t['aFe'][~ind], 'ko')
     plt.plot(t['FeH'][ind], t['aFe'][ind], 'ro')
     
     plt.sca(ax[1])
-    #plt.plot(t['phi1'], t['delta_Vrad'], 'ko')
-    #plt.plot(t['phi1'][ind], t['delta_Vrad'][ind], 'ro')
-    plt.plot(t['phi1'][~ind], t['delta_Vrad'][~ind], 'ro')
+    
+    for e, ind_field in enumerate([ind_spur, ind_stream]):
+        for ec, ind_chem in enumerate([~ind, ind]):
+            sel = ind_field & ind_chem
+            plt.errorbar(t['phi1'][sel], t['Vrad'][sel], yerr=t['std_Vrad'][sel], fmt='o', color=colors[ec], ms=ms[e], alpha=alpha[e])
+        #plt.plot(t['phi1'][ind & ind_], t['Vrad'][ind & ind_], 'ro', ms=ms[e], alpha=alpha[e])
+    plt.ylim(-100,50)
+    #plt.ylim(-10,10)
 
     plt.tight_layout()
