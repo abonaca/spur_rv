@@ -843,25 +843,29 @@ def fit_line(w_, f_, v_, sky, n, exp, i, iline, nwalkers, nsteps, pool, outdir):
     pickle.dump(out_dict, open('{:s}/{:s}.pkl'.format(outdir, fname), 'wb'))
 
 
+def plot_diagnostics(w_, f_, v_, sky, n, exp, i, iline):
+    """"""
+    fname = 'sky_field.{:d}.{:d}_spec.{:03d}_line.{:d}'.format(n, exp, i, iline)
+    pkl = pickle.load(open('../data/cache/chains/{:s}.pkl'.format(fname), 'rb'))
+    
     # plot chains
     names = [r'$\alpha_{bg}$', r'$\alpha$', r'$\mu$', r'$\sigma$']
     plt.close()
-    fig, ax = plt.subplots(sampler.ndim, figsize=(10,10), sharex=True)
+    fig, ax = plt.subplots(pkl['dim'], figsize=(10,10), sharex=True)
 
-    for k in range(sampler.ndim):
-        for walker in sampler.chain[..., k]:
+    for k in range(pkl['dim']):
+        for walker in pkl['chain'][..., k]:
             ax[k].plot(walker, marker='', drawstyle='steps-mid', alpha=0.2)
         ax[k].set_ylabel(names[k])
 
-    plt.sca(ax[sampler.ndim-1])
+    plt.sca(ax[pkl['dim']-1])
     plt.xlabel('Step')
 
     plt.tight_layout(h_pad=0)
     plt.savefig('../plots/diag/chain_{:s}.png'.format(fname), dpi=80)
-
-
+    
     # plot best-fit
-    med = np.median(sampler.chain[:,1024:,:].reshape(-1,sampler.ndim), axis=0)
+    med = np.median(pkl['chain'][:,1024:,:].reshape(-1,pkl['dim']), axis=0)
     dlambda = med[2] - sky[iline]
     dvr = (c*sky[iline]*(1/sky[iline] - 1/med[2])).to(u.km/u.s)
 
@@ -884,8 +888,50 @@ def fit_line(w_, f_, v_, sky, n, exp, i, iline, nwalkers, nsteps, pool, outdir):
 
     plt.tight_layout()
     plt.savefig('../plots/diag/fit_{:s}.png'.format(fname), dpi=80)
+    
+def sky_diag_field(n=5, exp=3, coadd=False, i0=0):
+    """"""
+    # read in hdu data
+    date = get_date(n)
+    if coadd:
+        exp_label = 'sum'
+    else:
+        exp_label = 'ex{:d}'.format(exp)
 
-    del sampler
+    fname = '../data/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, date, exp_label)
+    hdu = fits.open(fname)
+    
+    # available spectra
+    objtype = hdu[5].data['OBJTYPE']
+    ind_spec = np.array([False if ('UNUSED' in x_) or ('REJECT' in x_) else True for x_ in objtype])
+    
+    # cutout sky lines, from: https://www.eso.org/observing/dfo/quality/UVES/uvessky/sky_5800L_2.html
+    sky = [5197.928223, 5202.979004, 5224.145020, 5238.751953]
+    dw = 1
+    
+    # sampling setup
+    #nwalkers = 64
+    #nsteps = 4096
+    #nsteps = 2048
+    #np.random.seed(94629)
+    outdir = '../data/cache/chains'
+    
+    # sample
+    ids = np.arange(np.size(ind_spec), dtype=int)
+    for i in ids[ind_spec][i0:]:
+        w = np.array(hdu[0].data[i], dtype=float)
+        fsky = np.array(hdu[4].data[i], dtype=float)
+        vsky = np.sqrt(np.abs(fsky))
+        
+        for iline, wline in enumerate(sky):
+            # select input data
+            ind = np.abs(w - wline)<dw
+            w_ = np.array(w[ind], dtype=float)
+            f_ = np.array(fsky[ind], dtype=float)
+            v_ = np.array(vsky[ind], dtype=float)
+            
+            plot_diagnostics(w_, f_, v_, sky, n, exp, i, iline)
+
 
 def sky_fit_field(n=5, exp=3, coadd=False, i0=0, nth=3):
     """"""
