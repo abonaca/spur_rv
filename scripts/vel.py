@@ -15,7 +15,7 @@ import gala.coordinates as gc
 import glob
 import pickle
 
-from spec import *
+#from spec import *
 wangle = 180*u.deg
 
 def gd1_dist(phi1):
@@ -560,21 +560,27 @@ def h3():
     """Observed H3 stars in GD-1 coordinates"""
     
     t = Table.read('/home/ana/data/rcat_V1.4_MSG.fits')
-    c = coord.ICRS(ra=t['GaiaDR2_ra']*u.deg, dec=t['GaiaDR2_dec']*u.deg)
+    c = coord.ICRS(ra=t['RA']*u.deg, dec=t['DEC']*u.deg)
     cg = c.transform_to(gc.GD1)
     #print(t.colnames)
     
     tmem = Table.read('/home/ana/data/gd1-better-selection.fits')
+    print(tmem.colnames)
     
     plt.close()
-    plt.figure(figsize=(10,5))
+    plt.figure(figsize=(15,10))
     
-    plt.plot(cg.phi1.wrap_at(wangle), cg.phi2, '.', color='tab:blue', ms=1)
-    plt.plot(tmem['phi1'], tmem['phi2'], 'k.', ms=2.5, label='Observed GD-1')
+    #plt.plot(cg.phi1.wrap_at(wangle), cg.phi2, '.', color='tab:blue', ms=1)
+    #plt.plot(tmem['phi1'], tmem['phi2'], 'k.', ms=2.5, label='Observed GD-1')
+    #plt.xlim(-80,0)
+    #plt.ylim(-10,10)
     
-    plt.xlim(-80,0)
-    plt.ylim(-10,10)
+    plt.plot(c.ra, c.dec, '.', color='tab:blue', ms=1)
+    plt.plot(tmem['ra'], tmem['dec'], 'k.', ms=1, label='Observed GD-1', alpha=0.5)
+    plt.scatter(tmem['ra'], tmem['dec'], c=tmem['phi1'], vmin=-100, vmax=20)
     
+    plt.xlim(360,0)
+    plt.gca().set_aspect('equal')
     plt.tight_layout()
 
 
@@ -843,14 +849,14 @@ def build_master_catalog():
         
     c = coord.SkyCoord(ra=tout['ra']*u.deg, dec=tout['dec']*u.deg, pm_ra_cosdec=tout['pmra']*u.mas/u.yr, pm_dec=tout['pmdec']*u.mas/u.yr, radial_velocity=tout['Vrad']*u.km/u.s)
     #c = coord.SkyCoord(ra=g.ra, dec=g.dec, pm_ra_cosdec=g.pmra, pm_dec=g.pmdec)
-    cg = c.transform_to(gc.GD1)
+    cg_nocorr = c.transform_to(gc.GD1)
 
-    gd1_c_dist = gc.GD1(phi1=cg.phi1, phi2=cg.phi2,
+    gd1_c_dist = gc.GD1(phi1=cg_nocorr.phi1, phi2=cg_nocorr.phi2,
                         #distance=gd1_dist(cg.phi1),
-                        distance=gd1_dist(cg.phi1),
-                        pm_phi1_cosphi2=cg.pm_phi1_cosphi2,
-                        pm_phi2=cg.pm_phi2,
-                        radial_velocity=cg.radial_velocity)
+                        distance=gd1_dist(cg_nocorr.phi1),
+                        pm_phi1_cosphi2=cg_nocorr.pm_phi1_cosphi2,
+                        pm_phi2=cg_nocorr.pm_phi2,
+                        radial_velocity=cg_nocorr.radial_velocity)
 
     # Correct for reflex motion
     v_sun = coord.Galactocentric.galcen_v_sun
@@ -886,7 +892,7 @@ def build_master_catalog():
     y_ = polyrv_(x_)
     
     plt.close()
-    #plt.plot(cg.phi1.wrap_at(wangle)[mem], tout['Vrad'][mem], 'ko')
+    plt.plot(cg.phi1.wrap_at(wangle)[mem], tout['Vrad'][mem], 'ko')
     plt.plot(cg.phi1.wrap_at(wangle)[mem], drv[mem], 'ro')
     plt.plot(x_, y_, '-')
     
@@ -895,6 +901,8 @@ def build_master_catalog():
     tout['delta_Vrad'] = drv
     tout['pm_phi1_cosphi2'] = cg.pm_phi1_cosphi2.to(u.mas/u.yr)
     tout['pm_phi2'] = cg.pm_phi2.to(u.mas/u.yr)
+    tout['pm_phi1_cosphi2_nocorr'] = cg_nocorr.pm_phi1_cosphi2.to(u.mas/u.yr)
+    tout['pm_phi2_nocorr'] = cg_nocorr.pm_phi2.to(u.mas/u.yr)
     
     dates = [get_date(n_) for n_ in fields]
     
@@ -1814,13 +1822,14 @@ def get_members(t, full=False):
     # feh selection
     fehlims = np.array([-2.8, -1.9])
     fehlims = np.array([-2.8, -2.])
-    #fehlims = np.array([-2.1, -2.8])
-    fehmem = (t['FeH']>fehlims[0]) & (t['FeH']<fehlims[1])
+    #fehlims = np.array([-2.6, -2.1])
+    fehmem = (t['FeH']>fehlims[0]) & (t['FeH']<fehlims[1]) #& (t['aFe']>0.2)
     
     # pm selection
     pm1lims = np.array([-9,-4.5])
     pm2lims = np.array([-1.7,1])
-    #pm2lims = np.array([-2,2])
+    #pm1lims = np.array([-9,-6.5])
+    #pm2lims = np.array([-1.3,0.7])
     pmmem = (t['pm_phi1_cosphi2']>pm1lims[0]) & (t['pm_phi1_cosphi2']<pm1lims[1]) & (t['pm_phi2']>pm2lims[0]) & (t['pm_phi2']<pm2lims[1])
     
     members = cmdmem & pmmem & vrmem & fehmem
@@ -1830,6 +1839,16 @@ def get_members(t, full=False):
         return return_dict
     else:
         return members
+
+def save_members(verbose=True):
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    mem = get_members(t)
+    t = t[mem]
+    
+    if verbose:
+        t.pprint()
+    t.write('../data/members_catalog.fits', overwrite=True)
 
 def print_members_field():
     """"""
@@ -2200,10 +2219,10 @@ def diagnostic_summary(f=1, color_by='phi1', cmd_mem=True, return_figure=False):
     tin = Table.read('../data/master_catalog.fits')
 
     if cmd_mem:
+        mem = get_members(tin)
+    else:
         md = get_members(tin, full=True)
         mem = md['vrmem'] & md['fehmem'] & md['pmmem']
-    else:
-        mem = get_members(tin)
     
     ind = tin['field']==f
     print(f, np.sum(ind), len(tin))
@@ -2212,10 +2231,15 @@ def diagnostic_summary(f=1, color_by='phi1', cmd_mem=True, return_figure=False):
     t = tin[ind & mem]
     
     alphas = [0.5,1]
-    pairs = [[['phi1', 'phi2'], ['xfocal', 'yfocal']], [['phi1', 'Vrad'], ['FeH', 'aFe']], [['phi1', 'delta_Vrad'], ['gr', 'g']]]
-    labels = [[['$\phi_1$ [deg]', '$\phi_2$ [deg]'], ['$x_{focal}$', '$y_{focal}$']], [['$\phi_1$ [deg]', '$V_{rad}$ [km s$^{-1}$]'], ['[Fe/H]', '[$\\alpha$/Fe]']], [['$\phi_1$ [deg]', '$\Delta V_{rad}$ [km s$^{-1}$]'], ['(g - r)$_0$ [mag]', 'g$_0$ [mag]']]]
-    xlims = [[[-47,-29], [-300,300]], [[-47,-29], [-2.8,-1.8]], [[-47,-29], [0.1,0.6]]]
-    ylims = [[[-0.5,1.7], [-300,300]], [[-100,50], [-0.1,0.6]], [[-10,10], [21,15.5]]]
+    #pairs = [[['phi1', 'phi2'], ['xfocal', 'yfocal']], [['phi1', 'Vrad'], ['FeH', 'aFe']], [['phi1', 'delta_Vrad'], ['gr', 'g']]]
+    #labels = [[['$\phi_1$ [deg]', '$\phi_2$ [deg]'], ['$x_{focal}$', '$y_{focal}$']], [['$\phi_1$ [deg]', '$V_{rad}$ [km s$^{-1}$]'], ['[Fe/H]', '[$\\alpha$/Fe]']], [['$\phi_1$ [deg]', '$\Delta V_{rad}$ [km s$^{-1}$]'], ['(g - r)$_0$ [mag]', 'g$_0$ [mag]']]]
+    #xlims = [[[-47,-29], [-300,300]], [[-47,-29], [-2.8,-1.8]], [[-47,-29], [0.1,0.6]]]
+    #ylims = [[[-0.5,1.7], [-300,300]], [[-100,50], [-0.1,0.6]], [[-10,10], [21,15.5]]]
+    
+    pairs = [[['phi1', 'phi2'], ['pm_phi1_cosphi2', 'pm_phi2']], [['phi1', 'Vrad'], ['FeH', 'aFe']], [['phi1', 'delta_Vrad'], ['gr', 'g']]]
+    labels = [[['$\phi_1$ [deg]', '$\phi_2$ [deg]'], ['$\mu_{\phi_1}$ [deg]', '$\mu_{\phi_2}$ [deg]']], [['$\phi_1$ [deg]', '$V_{rad}$ [km s$^{-1}$]'], ['[Fe/H]', '[$\\alpha$/Fe]']], [['$\phi_1$ [deg]', '$\Delta V_{rad}$ [km s$^{-1}$]'], ['(g - r)$_0$ [mag]', 'g$_0$ [mag]']]]
+    xlims = [[[-47,-29], [-9,-4.5]], [[-47,-29], [-2.8,-1.8]], [[-47,-29], [0.1,0.6]]]
+    ylims = [[[-0.5,1.7], [-1.7,1]], [[-100,50], [-0.1,0.6]], [[-10,10], [21,15.5]]]
     
     
     plt.close()
