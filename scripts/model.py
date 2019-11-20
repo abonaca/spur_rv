@@ -1132,6 +1132,106 @@ def lnprob_verbose(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstrea
     return fig, ax, chi_gap, chi_spur, chi_vr, np.sum(loop_quadrant), -(chi_gap + chi_spur + chi_vr)
     #return fig
 
+def lnprob_verbose_noplot(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb, poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, fg, N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, fs, phi1_list, delta_phi1, mu_vr, sigma_vr, fvr, chigap_max, chispur_max):
+    """Calculate pseudo-likelihood of a stream==orbit model, evaluating against the gap location & width, spur location & extent, and radial velocity offsets"""
+    
+    x[5] = 10**x[5]
+    params = [x_*u_ for x_, u_ in zip(x, params_units)]
+    if potential_perturb==1:
+        t_impact, bx, by, vx, vy, M, Tgap = params
+        par_perturb = np.array([M.si.value, 0., 0., 0.])
+    else:
+        t_impact, bx, by, vx, vy, M, rs, Tgap = params
+        #t_impact, b, bphi, v, vphi, M, rs, Tgap = params
+        #bx = b*np.cos(bphi)
+        #by = b*np.sin(bphi)
+        #vx = v*np.cos(vphi)
+        #vy = v*np.sin(vphi)
+        par_perturb = np.array([M.to(u.kg).value, rs.to(u.m).value, 0., 0., 0.])
+        if x[6]<0:
+            return -np.inf
+    
+    if (Tgap<0*u.Myr) | (Tgap>Tstream):
+        return -np.inf
+
+    # calculate model
+    x1, x2, x3, v1, v2, v3, dE = interact.abinit_interaction(xend, vend, dt_coarse.to(u.s).value, dt_fine.to(u.s).value, t_impact.to(u.s).value, Tenc.to(u.s).value, Tstream.to(u.s).value, Tgap.to(u.s).value, Nstream, par_pot, potential, par_perturb, potential_perturb, bx.to(u.m).value, by.to(u.m).value, vx.to(u.m/u.s).value, vy.to(u.m/u.s).value)
+    
+    c = coord.Galactocentric(x=x1*u.m, y=x2*u.m, z=x3*u.m, v_x=v1*u.m/u.s, v_y=v2*u.m/u.s, v_z=v3*u.m/u.s, **gc_frame_dict)
+    cg = c.transform_to(gc.GD1)
+
+    # spur chi^2
+    top1 = np.percentile(dE[:N2], percentile1)
+    top2 = np.percentile(dE[N2:], percentile2)
+    if np.isfinite(top1) & np.isfinite(top2):
+        ind_loop1 = np.where(dE[:N2]<top1)[0][0]
+        ind_loop2 = np.where(dE[N2:]>top2)[0][-1]
+    else:
+        return -np.inf
+    
+    f = scipy.interpolate.interp1d(spx, spy, kind='quadratic')
+    
+    aloop_mask = np.zeros(Nstream, dtype=bool)
+    aloop_mask[ind_loop1:ind_loop2+N2] = True
+    phi1_mask = (cg.phi1.wrap_at(wangle)>phi1_min) & (cg.phi1.wrap_at(wangle)<phi1_max)
+    loop_mask = aloop_mask & phi1_mask
+    Nloop = np.sum(loop_mask)
+    
+    loop_quadrant = (cg.phi1.wrap_at(wangle)[loop_mask]>quad_phi1) & (cg.phi2[loop_mask]>quad_phi2)
+
+    chi_spur = np.sum((cg.phi2[loop_mask].value - f(cg.phi1.wrap_at(wangle).value[loop_mask]))**2/phi2_err**2)/Nloop
+    phi1_max = np.max(cg.phi1.wrap_at(wangle).value[aloop_mask])
+    chi_spur = chi_spur + (phi1_max + 30)**2/(2**2)
+    
+    # vr chi^2
+    indmin = 0
+    indmax = np.argmax(cg.phi1.wrap_at(wangle).value[aloop_mask])
+    
+    #plt.plot(cg.phi1.wrap_at(wangle), cg.phi2, 'ko')
+    #plt.plot(cg.phi1.wrap_at(wangle)[aloop_mask], cg.phi2[aloop_mask], 'ro')
+    #print(indmin, indmax, phi1_max, phi1_list, )
+    
+    if (phi1_max*u.deg<phi1_list[-1]) | (indmin>=indmax):
+        return -1e7
+    else:
+        vr_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.radial_velocity.to(u.km/u.s)[aloop_mask][indmin:indmax])*u.km/u.s
+        isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
+        vr_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
+        chi_vr = np.sum((vr_spur - vr_stream)**2/sigma_vr**2).decompose()
+    
+    # gap chi^2
+    phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
+    h_model, be = np.histogram(cg.phi1[phi2_mask].wrap_at(wangle).value, bins=bins)
+    model_base = np.median(h_model[base_mask])
+    model_hat = np.median(h_model[hat_mask])
+    ytop_model = tophat(bc, model_base, model_hat,  gap_position, gap_width)
+    
+    # scale
+    scale_gap = Nstream / 2e3
+    h_model = h_model * scale_gap
+    yerr = np.sqrt(h_model+1) * scale_gap
+    ytop_model = ytop_model * scale_gap
+    chi_gap = np.sum((h_model - ytop_model)**2/yerr**2)/Nb
+    
+    # vr
+    isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
+    vr0 = np.interp(cg.phi1.wrap_at(wangle).value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
+    dvr = vr0 - cg.radial_velocity.to(u.km/u.s)
+    vr0_ = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
+    dvr_stream = vr0_ - vr_stream
+    dvr_spur = vr0_ - vr_spur
+
+    lnl = -(fg*chi_gap + fs*chi_spur + fvr*chi_vr)
+    #lnl = -(chi_gap + chi_spur + chi_vr)
+
+    pm1_0 = np.interp(cg.phi1.wrap_at(wangle).value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.pm_phi1_cosphi2.to(u.mas/u.yr)[~aloop_mask][isort])*u.mas/u.yr
+    dpm1 = pm1_0 - cg.pm_phi1_cosphi2.to(u.mas/u.yr)
+    pm2_0 = np.interp(cg.phi1.wrap_at(wangle).value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.pm_phi2.to(u.mas/u.yr)[~aloop_mask][isort])*u.mas/u.yr
+    dpm2 = pm2_0 - cg.pm_phi2.to(u.mas/u.yr)
+
+    return chi_gap, chi_spur, chi_vr, np.sum(loop_quadrant), lnl, vr0_, vr_stream, vr_spur
+
+
 def sort_on_runtime(p):
     """Improve runtime by starting longest jobs first (sorts on first parameter -- in our case, the encounter time)"""
     
@@ -1506,7 +1606,7 @@ def prior_transform(u):
 
 
 # diagnose nest
-from dynesty import utils as dyfunc
+#from dynesty import utils as dyfunc
 
 def nest_extract(label='static', sqrt=False, fvr=0, N=100000):
     """"""
@@ -2165,6 +2265,167 @@ def check_nest_model(fvr=1, sqrt=False, flag='', N=1):
         
         plt.savefig('../plots/model_diag/likelihood_nest{:s}_{:s}_{:04d}.png'.format(label_lnl, flag, i), dpi=200)
 
+def get_delta_vr(x):
+    """"""
+    pkl = Table.read('../data/gap_present.fits')
+    xunit = pkl['x_gap'].unit
+    vunit = pkl['v_gap'].unit
+    c = coord.Galactocentric(x=pkl['x_gap'][0]*xunit, y=pkl['x_gap'][1]*xunit, z=pkl['x_gap'][2]*xunit, v_x=pkl['v_gap'][0]*vunit, v_y=pkl['v_gap'][1]*vunit, v_z=pkl['v_gap'][2]*vunit, **gc_frame_dict)
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    xgap = np.array([w0.pos.x.si.value, w0.pos.y.si.value, w0.pos.z.si.value])
+    vgap = np.array([w0.vel.d_x.si.value, w0.vel.d_y.si.value, w0.vel.d_z.si.value])
+    
+    ## load orbital end point
+    #pkl = Table.read('../data/short_endpoint.fits')
+    #xend = np.array(pkl['xend'])
+    #vend = np.array(pkl['vend'])
+    ##w0_end = pkl['w0']
+    ##xend = np.array([w0_end.pos.x.si.value, w0_end.pos.y.si.value, w0_end.pos.z.si.value])
+    ##vend = np.array([w0_end.vel.d_x.si.value, w0_end.vel.d_y.si.value, w0_end.vel.d_z.si.value])
+    
+    # load orbital end point (for old samples)
+    pot = 'log'
+    pos = np.load('../data/{}_orbit.npy'.format(pot))
+    phi1, phi2, d, pm1, pm2, vr = pos
+
+    c_end = gc.GD1(phi1=phi1*u.deg, phi2=phi2*u.deg, distance=d*u.kpc, pm_phi1_cosphi2=pm1*u.mas/u.yr, pm_phi2=pm2*u.mas/u.yr, radial_velocity=vr*u.km/u.s)
+    w0_end = gd.PhaseSpacePosition(c_end.transform_to(gc_frame).cartesian)
+    xend = np.array([w0_end.pos.x.si.value, w0_end.pos.y.si.value, w0_end.pos.z.si.value])
+    vend = np.array([w0_end.vel.d_x.si.value, w0_end.vel.d_y.si.value, w0_end.vel.d_z.si.value])
+    
+    dt_coarse = 0.5*u.Myr
+    Tstream = 56*u.Myr
+    Tgap = 29.176*u.Myr
+    #Tstream = 16*u.Myr
+    #Tgap = 9.176*u.Myr
+    Nstream = 2000
+    N2 = int(Nstream*0.5)
+    dt_stream = Tstream/Nstream
+    dt_fine = 0.05*u.Myr
+    wangle = 180*u.deg
+    Tenc = 0.01*u.Gyr
+    
+    # gap comparison
+    #bins = np.linspace(-60,-20,30)
+    bins = np.linspace(-55,-25,20)
+    bc = 0.5 * (bins[1:] + bins[:-1])
+    Nb = np.size(bc)
+    Nside_min = 5
+    f_gap = 0.5
+    delta_phi2 = 0.5
+    
+    gap = np.load('../data/gap_properties.npz')
+    phi1_edges = gap['phi1_edges']
+    gap_position = gap['position']
+    gap_width = gap['width']
+    gap_yerr = gap['yerr']
+    base_mask = ((bc>phi1_edges[0]) & (bc<phi1_edges[1])) | ((bc>phi1_edges[2]) & (bc<phi1_edges[3]))
+    hat_mask = (bc>phi1_edges[4]) & (bc<phi1_edges[5])
+    
+    p = np.load('../data/polytrack.npy')
+    poly = np.poly1d(p)
+    x_ = np.linspace(-100,0,100)
+    y_ = poly(x_)
+    
+    # spur comparison
+    sp = np.load('../data/spur_track.npz')
+    spx = sp['x']
+    spy = sp['y']
+    phi2_err = 0.2
+    phi1_min = -50*u.deg
+    phi1_max = -30*u.deg
+    percentile1 = 3
+    percentile2 = 92
+    quad_phi1 = -32*u.deg
+    quad_phi2 = 0.8*u.deg
+    Nquad = 1
+    
+    # vr comparison
+    pkl = pickle.load(open('../data/vr_unperturbed.pkl', 'rb'))
+    phi1_list = pkl['phi1_list']
+    delta_phi1 = pkl['delta_phi1']
+    delta_phi1 = 1.5*u.deg
+    mu_vr = pkl['mu_vr']
+    sigma_vr = pkl['sigma_vr']
+
+    # tighten likelihood
+    #delta_phi2 = 0.1
+    phi2_err = 0.15
+    percentile1 = 1
+    percentile2 = 90
+    delta_phi1 = 0.3*u.deg
+    sigma_vr = np.array([0.15, 0.15])*u.km/u.s
+    #sigma_vr = np.array([0.5, 0.5])*u.km/u.s
+    
+    potential = 3
+    Vh = 225*u.km/u.s
+    q = 1*u.Unit(1)
+    rhalo = 0*u.pc
+    par_pot = np.array([Vh.to(u.m/u.s).value, q.value, rhalo.to(u.m).value])
+    
+    chigap_max = 0.6567184385873621
+    chispur_max = 1.0213837095314207
+    
+    chigap_max = 0.8
+    chispur_max = 1.2
+    
+    # weights
+    fg = 1
+    fs = 1
+    fvr = 1
+    
+    # parameters to sample
+    t_impact = 0.49*u.Gyr
+    M = 2.2e7*u.Msun
+    rs = 0.55*u.pc
+    bx=21*u.pc
+    by=15*u.pc
+    vx=330*u.km/u.s
+    vy=-370*u.km/u.s
+    
+    t_impact = 0.48*u.Gyr
+    M = 7.7e6*u.Msun
+    rs = 0.32*u.pc
+    bx=17*u.pc
+    by=0.4*u.pc
+    vx=480*u.km/u.s
+    vy=-110*u.km/u.s
+    
+    t_impact = 0.48*u.Gyr
+    M = 6.7e6*u.Msun
+    rs = 0.66*u.pc
+    bx = 22*u.pc
+    by = -3.3*u.pc
+    vx = 240*u.km/u.s
+    vy = 17*u.km/u.s
+    
+    potential_perturb = 2
+    if potential_perturb==1:
+        params_list = [t_impact, bx, by, vx, vy, M, Tgap]
+    elif potential_perturb==2:
+        params_list = [t_impact, bx, by, vx, vy, M, rs, Tgap]
+    params_units = [p_.unit for p_ in params_list]
+    params = [p_.value for p_ in params_list]
+    params[5] = np.log10(params[5])
+    
+    model_args = [params_units, xend, vend, dt_coarse, dt_fine, Tenc, Tstream, Nstream, par_pot, potential, potential_perturb]
+    gap_args = [poly, wangle, delta_phi2, Nb, bins, bc, base_mask, hat_mask, Nside_min, f_gap, gap_position, gap_width, fg]
+    spur_args = [N2, percentile1, percentile2, phi1_min, phi1_max, phi2_err, spx, spy, quad_phi1, quad_phi2, Nquad, fs]
+    vr_args = [phi1_list, delta_phi1, mu_vr, sigma_vr, fvr]
+    lnp_args = [chigap_max, chispur_max]
+    lnprob_args = model_args + gap_args + spur_args + vr_args + lnp_args
+    
+    res = lnprob_verbose_noplot(x, *lnprob_args)
+    #print(res)
+    
+    if isinstance(res, tuple):
+        chi_gap, chi_spur, chi_vr, sum_loop_quadrant, lntot, vr0_, vr_stream, vr_spur = res
+        return vr_stream - vr_spur
+    else:
+        return -np.inf, -np.inf
+    #chi_gap, chi_spur, chi_vr, sum_loop_quadrant, lntot, vr0_, vr_stream, vr_spur = lnprob_verbose_noplot(x, *lnprob_args)
+    #return vr_stream - vr_spur
+
 # perturber @ present
 
 def perturber_orbit(label='', N=10, seed=385761):
@@ -2251,7 +2512,7 @@ def perturber_orbit(label='', N=10, seed=385761):
     plt.tight_layout()
     plt.savefig('../plots/perturber_orbit_cartesian_N{:04d}.png'.format(N), dpi=200)
 
-def perturber_sky(label='', N=10, seed=385761, color='dist'):
+def perturber_sky(label='vr_v500_w200', N=10, seed=385761, color='distance'):
     """"""
     np.random.seed(seed)
     
@@ -2364,29 +2625,45 @@ def perturber_present_table(label='', N=1000, verbose=False, vr=True):
         chain = sampler['chain'][ind]
         label = 'v500w200'
     units = [u.Gyr, u.pc, u.pc, u.km/u.s, u.km/u.s, u.Msun, u.pc, u.Myr]
-    #N = np.size(sampler['lnp'])
-    #N = 5
-    tout = Table(names=('x', 'y', 'z', 'vx', 'vy', 'vz', 'Timpact', 'bx', 'by', 'vxsub', 'vysub', 'M', 'rs', 'Tgap'))
+    if N==0:
+        N = np.size(sampler['lnp'])
+    #N = 1
+    tout = Table(names=('x', 'y', 'z', 'vx', 'vy', 'vz', 'Timpact', 'bx', 'by', 'vxsub', 'vysub', 'M', 'rs', 'Tgap', 'dvr1', 'dvr2'))
     Ntot = np.shape(chain)[0]
 
-    #print(np.shape(chain))
-
-#def br():
     np.random.seed(4385)
+    indices = np.linspace(0, Ntot-1, Ntot, dtype=int)
+    indices = np.random.permutation(indices)
 
     #for e in range(N):
-    for e, ind in enumerate(np.random.randint(0, high=Ntot, size=N)):
+        #ind = e
+    #for e, ind in enumerate(np.random.randint(0, high=Ntot, size=N)):
+    for e, ind in enumerate(indices[:N]):
+        x = np.copy(chain[ind])
+        dvr1, dvr2 = get_delta_vr(x)
+        
         p = chain[ind]
         p[5] = 10**p[5]
         t_impact, bx, by, vx, vy, M, rs, Tgap = [x*y for x, y in zip(p, units)]
         if verbose: print(e, p)
         
-        # load orbital end point
-        pkl = Table.read('../data/short_endpoint.fits')
-        xend = np.array(pkl['xend'])*u.m
-        vend = np.array(pkl['vend'])*u.m/u.s
-        c_end = coord.Galactocentric(x=xend[0], y=xend[1], z=xend[2], v_x=vend[0], v_y=vend[1], v_z=vend[2], **gc_frame_dict)
+        ## load orbital end point
+        #pkl = Table.read('../data/short_endpoint.fits')
+        #xend = np.array(pkl['xend'])
+        #vend = np.array(pkl['vend'])
+        ##w0_end = pkl['w0']
+        ##xend = np.array([w0_end.pos.x.si.value, w0_end.pos.y.si.value, w0_end.pos.z.si.value])
+        ##vend = np.array([w0_end.vel.d_x.si.value, w0_end.vel.d_y.si.value, w0_end.vel.d_z.si.value])
+        
+        # load orbital end point (for old samples)
+        pot = 'log'
+        pos = np.load('../data/{}_orbit.npy'.format(pot))
+        phi1, phi2, d, pm1, pm2, vr = pos
+
+        c_end = gc.GD1(phi1=phi1*u.deg, phi2=phi2*u.deg, distance=d*u.kpc, pm_phi1_cosphi2=pm1*u.mas/u.yr, pm_phi2=pm2*u.mas/u.yr, radial_velocity=vr*u.km/u.s)
         w0_end = gd.PhaseSpacePosition(c_end.transform_to(gc_frame).cartesian)
+        xend = np.array([w0_end.pos.x.si.value, w0_end.pos.y.si.value, w0_end.pos.z.si.value])
+        vend = np.array([w0_end.vel.d_x.si.value, w0_end.vel.d_y.si.value, w0_end.vel.d_z.si.value])
         
         # find gap location at the time of impact
         Tinit = t_impact - Tgap
@@ -2435,10 +2712,11 @@ def perturber_present_table(label='', N=1000, verbose=False, vr=True):
         M = np.log10(M.to(u.Msun).value)
         x, y, z = x_
         vx, vy, vz = v_
-        tout.add_row([x, y, z, vx, vy, vz, t_impact, bx, by, vxsub, vysub, M, rs, Tgap])
+        tout.add_row([x, y, z, vx, vy, vz, t_impact, bx, by, vxsub, vysub, M, rs, Tgap, dvr1, dvr2])
     
     tout.pprint()
     tout.write('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N), overwrite=True)
+    print(np.sum(np.isfinite(tout['dvr1'])), np.sum(np.isfinite(tout['dvr2'])))
 
 
 def present_sky(label='dynesty_vr', fvr=0, N=2000, step=0):
@@ -2520,7 +2798,7 @@ def present_sky(label='dynesty_vr', fvr=0, N=2000, step=0):
     
     plt.savefig('../plots/nest_perturber_today_sgr_{:d}.png'.format(step), dpi=200)
 
-def present_sgr_old(label='dvr_lila_v500_w200', N=1000, step=0):
+def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass'):
     """"""
     
     t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
@@ -2532,19 +2810,78 @@ def present_sgr_old(label='dvr_lila_v500_w200', N=1000, step=0):
     
     c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
     ceq = c.transform_to(coord.ICRS)
+    cgal = c.transform_to(coord.Galactic)
+    
+    cplane = coord.Galactic(l=np.linspace(0,360,100)*u.deg, b=np.zeros(100)*u.deg)
+    cplane_eq = cplane.transform_to(coord.ICRS)
     
     tsgr = Table.read('/home/ana/projects/h3/data/SgrTriax_DYN.dat.gz', format='ascii')
     tsgr = tsgr[::10]
     c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr)
     vr = gc.vgsr_to_vhel(c_sgr, tsgr['vgsr']*u.km/u.s)
     c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr, radial_velocity=vr)
+    
+    # coloring
+    if colorby=='mass':
+        clr = t['M']
+        clabel = 'log M$_{perturb}$ / M$_\odot$'
+        cmap = 'magma'
+        vmin = 6.5
+        vmax = 7.5
+    elif colorby=='rs':
+        clr = t['rs']
+        clabel = 'Scale size [pc]'
+        cmap = 'magma'
+        vmin = 0
+        vmax = 10
+    elif colorby=='b':
+        clr = np.sqrt(t['bx']**2 + t['by']**2)
+        clabel = 'Impact parameter [pc]'
+        cmap = 'magma'
+        vmin = 0
+        vmax = 60
+    elif colorby=='vsub':
+        clr = np.sqrt(t['vxsub']**2 + t['vysub']**2)
+        clabel = 'Perturber velocity [km s$^{-1}$]'
+        cmap = 'magma'
+        vmin = 0
+        vmax = 500
+    elif colorby=='t':
+        clr = t['Timpact']
+        clabel = 'Impact time [Gyr]'
+        cmap = 'magma'
+        vmin = 0.4
+        vmax = 0.6
+    elif colorby=='tgap':
+        clr = t['Tgap']
+        clabel = 'Gap time [Myr]'
+        cmap = 'magma'
+        vmin = 28
+        vmax = 30
+    elif colorby=='dvr1':
+        clr = t['dvr1']
+        clabel = '$\Delta$ V$_r$($\phi_1$=-33.7) [km s$^-1$]'
+        cmap = 'twilight'
+        vmin = -5
+        vmax = 5
+    elif colorby=='dvr2':
+        clr = t['dvr2']
+        clabel = '$\Delta$ V$_r$($\phi_1$=-30) [km s$^-1$]'
+        cmap = 'twilight'
+        vmin = -5
+        vmax = 5
 
     plt.close()
     fig = plt.figure(figsize=(12,5.2))
     ax = fig.add_subplot(111, projection='mollweide')
     #ax = fig.add_subplot(111)
     
-    im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=t['M'], zorder=0, s=14, vmin=6.5, vmax=7.5, cmap='magma', label='GD-1 perturber')
+    #im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=t['M'], zorder=0, s=14, vmin=6.5, vmax=7.5, cmap='magma', label='GD-1 perturber')
+    im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=clr, zorder=0, s=14, cmap=cmap, vmin=vmin, vmax=vmax, label='GD-1 perturber')
+    
+    #plt.plot(cplane_eq.ra.wrap_at(wangle).radian, cplane_eq.dec.radian, 'k-')
+    #im = plt.scatter(cgal.l.wrap_at(wangle).radian, cgal.b.radian, rasterized=True, c=t['M'], zorder=0, s=14, vmin=6.5, vmax=7.5, cmap='magma', label='GD-1 perturber')
+    #plt.plot(cplane.l.wrap_at(wangle).radian, cplane.b.radian, 'k-')
     #im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=ceq.distance.to(u.kpc).value, vmin=10, vmax=100, zorder=0, s=14, cmap='viridis')
     if step>2:
         plt.quiver(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, ceq.pm_ra_cosdec.value, ceq.pm_dec.value, color=mpl.cm.magma(0.5), width=1, units='dots', headlength=3, scale_units='inches', scale=3, label='')
@@ -2573,9 +2910,9 @@ def present_sgr_old(label='dvr_lila_v500_w200', N=1000, step=0):
     #sm._A = []
     
     cb = fig.colorbar(im, ax=ax, pad=0.04, aspect=20)
-    cb.set_label('log M$_{perturb}$ / M$_\odot$')
+    cb.set_label(clabel)
     
-    plt.savefig('../plots/perturber_today_sgr_{:d}.png'.format(step), dpi=200)
+    plt.savefig('../plots/perturber_today_sgr_{:s}_{:d}.png'.format(colorby, step), dpi=200)
 
 def sgr_clusters():
     """"""
@@ -2595,3 +2932,37 @@ def sgr_clusters():
     
     plt.plot(tgc['RA'], tgc['DEC'], 'o', color='orange')
     plt.quiver(tgc['RA'], tgc['DEC'], tgc['PMRA'], tgc['PMDEC'], color='orange', width=2, units='dots', headlength=3, scale=10, scale_units='inches')
+
+# velocity correlations
+
+def dvr_corr(label='v500w200', N=4000):
+    """"""
+    
+    t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
+    
+    plt.close()
+    fig, ax = plt.subplots(1, 5, figsize=(20, 4.5), sharey=True)
+    
+    cols = [t['M'], t['rs'], t['Timpact'], np.sqrt(t['bx']**2 + t['by']**2), np.sqrt(t['vxsub']**2 + t['vysub']**2)]
+    labels = ['log M$_{perturb}$ / M$_\odot$', 'Scale size [pc]', 'Impact time [Gyr]', 'Impact parameter [pc]', 'Perturber velocity [km s$^{-1}$]']
+    
+    for e, col in enumerate(cols):
+        plt.sca(ax[e])
+        plt.plot(col, t['dvr1'], 'o', color=mpl.cm.magma(0.3), ms=2, mew=0, label='$\phi_1$ = -33.7$^\circ$')
+        plt.plot(col, t['dvr2'], 'o', color=mpl.cm.magma(0.5), ms=2, mew=0, label='$\phi_1$ = -30$^\circ$')
+        
+        plt.axhline(1, color='k', ls=':')
+        plt.axhline(-1, color='k', ls=':')
+        plt.xlabel(labels[e])
+    
+    plt.sca(ax[0])
+    plt.legend(fontsize='small', handlelength=1, markerscale=1.5)
+    plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
+    plt.ylim(-10,10)
+    
+    plt.tight_layout()
+    plt.savefig('../plots/dvr_impact_params.png')
+
+
+
+
