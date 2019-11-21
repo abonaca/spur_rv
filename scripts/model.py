@@ -2621,8 +2621,9 @@ def perturber_present_table(label='', N=1000, verbose=False, vr=True):
         chain = sampler['chain']
     else:
         sampler = np.load('../../gd1_spur/data/unique_samples_v500w200.npz')
-        ind = sampler['chain'][:,5]>6.7
-        chain = sampler['chain'][ind]
+        #ind = sampler['chain'][:,5]>6.7
+        #chain = sampler['chain'][ind]
+        chain = sampler['chain']
         label = 'v500w200'
     units = [u.Gyr, u.pc, u.pc, u.km/u.s, u.km/u.s, u.Msun, u.pc, u.Myr]
     if N==0:
@@ -2798,19 +2799,36 @@ def present_sky(label='dynesty_vr', fvr=0, N=2000, step=0):
     
     plt.savefig('../plots/nest_perturber_today_sgr_{:d}.png'.format(step), dpi=200)
 
-def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass'):
+def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass', dvrcut=False):
     """"""
     
     t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
-    if N==5000:
-        t = t[:2000]
-    if step>1:
-        ind = np.abs(t['M']-6.9)<0.1
-        t = t[ind]
     
     c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
     ceq = c.transform_to(coord.ICRS)
     cgal = c.transform_to(coord.Galactic)
+    
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    orbit = ham.integrate_orbit(w0, dt=1., n_steps=1)
+    epot = orbit.potential_energy()[0,:]
+    ekin = orbit.kinetic_energy()[0,:]
+    energy = orbit.energy()[0,:]
+    
+    if step>1:
+        #ind = np.abs(t['M']-6.9)<0.1
+        ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
+        ind_bound = ekin<epot
+        t = t[ind & ind_bound]
+    
+        c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+        ceq = c.transform_to(coord.ICRS)
+        cgal = c.transform_to(coord.Galactic)
+        
+        w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+        orbit = ham.integrate_orbit(w0, dt=1., n_steps=1)
+        epot = orbit.potential_energy()[0,:]
+        ekin = orbit.kinetic_energy()[0,:]
+        energy = orbit.energy()[0,:]
     
     cplane = coord.Galactic(l=np.linspace(0,360,100)*u.deg, b=np.zeros(100)*u.deg)
     cplane_eq = cplane.transform_to(coord.ICRS)
@@ -2821,13 +2839,17 @@ def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass'):
     vr = gc.vgsr_to_vhel(c_sgr, tsgr['vgsr']*u.km/u.s)
     c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr, radial_velocity=vr)
     
+    g = Table(fits.getdata('/home/ana/projects/legacy/GD1-DR2/output/gd1_members.fits'))
+    cgd1 = gc.GD1(phi1=g['phi1']*u.deg, phi2=g['phi2']*u.deg)
+    cgd1_eq = cgd1.transform_to(coord.ICRS)
+    
     # coloring
     if colorby=='mass':
         clr = t['M']
         clabel = 'log M$_{perturb}$ / M$_\odot$'
         cmap = 'magma'
-        vmin = 6.5
-        vmax = 7.5
+        vmin = 6.2
+        vmax = 7.2
     elif colorby=='rs':
         clr = t['rs']
         clabel = 'Scale size [pc]'
@@ -2850,8 +2872,8 @@ def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass'):
         clr = t['Timpact']
         clabel = 'Impact time [Gyr]'
         cmap = 'magma'
-        vmin = 0.4
-        vmax = 0.6
+        vmin = 0.35
+        vmax = 0.55
     elif colorby=='tgap':
         clr = t['Tgap']
         clabel = 'Gap time [Myr]'
@@ -2870,6 +2892,12 @@ def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass'):
         cmap = 'twilight'
         vmin = -5
         vmax = 5
+    elif colorby=='energy':
+        clr = energy.to(u.kpc**2/u.Myr**2)
+        clabel = 'Energy [kpc$^2$ Myr$^{-2}$]'
+        cmap = 'magma'
+        vmin = 0.1
+        vmax = 0.3
 
     plt.close()
     fig = plt.figure(figsize=(12,5.2))
@@ -2884,13 +2912,19 @@ def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass'):
     #plt.plot(cplane.l.wrap_at(wangle).radian, cplane.b.radian, 'k-')
     #im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=ceq.distance.to(u.kpc).value, vmin=10, vmax=100, zorder=0, s=14, cmap='viridis')
     if step>2:
-        plt.quiver(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, ceq.pm_ra_cosdec.value, ceq.pm_dec.value, color=mpl.cm.magma(0.5), width=1, units='dots', headlength=3, scale_units='inches', scale=3, label='')
+        plt.quiver(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, ceq.pm_ra_cosdec.value, ceq.pm_dec.value, color=mpl.cm.magma(0.5), width=2, units='dots', headlength=3, scale_units='inches', scale=3, label='')
     
     if step>0:
         #plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, c=c_sgr.distance.to(u.kpc).value, vmin=10, vmax=100, edgecolors='none', s=5, alpha=1, rasterized=True, label='Sagittarius\nLaw & Majewski (2010)')
         plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, color='k', edgecolors='none', s=5, alpha=0.3, rasterized=True, label='Sagittarius (LM10)')
+        
+        #ind_mem = g['pmem']>0.5
+        #plt.scatter(cgd1_eq.ra.wrap_at(wangle).radian[ind_mem], cgd1_eq.dec.radian[ind_mem], color='forestgreen', edgecolors='none', s=5, alpha=0.3, rasterized=True, label='GD-1')
+        
+        psort = np.argsort(cplane_eq.ra.wrap_at(wangle))
+        plt.plot(cplane_eq.ra.wrap_at(wangle).radian[psort], cplane_eq.dec.radian[psort], 'k-', lw=0.5, label='Galactic plane')
     if step>2:
-        ind = np.abs(tsgr['beta']-14)<0.5
+        ind = np.abs(tsgr['beta']+10)<2
         plt.quiver(c_sgr.ra.wrap_at(wangle).radian[ind], c_sgr.dec.radian[ind], c_sgr.pm_ra_cosdec.value[ind], c_sgr.pm_dec.value[ind], width=2, units='dots', headlength=3, scale=3, scale_units='inches', alpha=1, label='')
 
     plt.legend(frameon=True, loc=4, handlelength=0.5)
@@ -2940,16 +2974,26 @@ def dvr_corr(label='v500w200', N=4000):
     
     t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
     
-    plt.close()
-    fig, ax = plt.subplots(1, 5, figsize=(20, 4.5), sharey=True)
+    c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+    ceq = c.transform_to(coord.ICRS)
+    cgal = c.transform_to(coord.Galactic)
     
-    cols = [t['M'], t['rs'], t['Timpact'], np.sqrt(t['bx']**2 + t['by']**2), np.sqrt(t['vxsub']**2 + t['vysub']**2)]
-    labels = ['log M$_{perturb}$ / M$_\odot$', 'Scale size [pc]', 'Impact time [Gyr]', 'Impact parameter [pc]', 'Perturber velocity [km s$^{-1}$]']
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    orbit = ham.integrate_orbit(w0, dt=1., n_steps=1)
+    epot = orbit.potential_energy()[0,:]
+    ekin = orbit.kinetic_energy()[0,:]
+    energy = orbit.energy()[0,:].to(u.kpc**2/u.Myr**2)
+    
+    plt.close()
+    fig, ax = plt.subplots(1, 6, figsize=(20, 4.5), sharey=True)
+    
+    cols = [t['M'], t['rs'], t['Timpact'], np.sqrt(t['bx']**2 + t['by']**2), np.sqrt(t['vxsub']**2 + t['vysub']**2), energy]
+    labels = ['log M$_{perturb}$ / M$_\odot$', 'Scale size [pc]', 'Impact time [Gyr]', 'Impact parameter [pc]', 'Perturber velocity [km s$^{-1}$]', 'Energy [kpc$^2$ Myr$^{-2}$]']
     
     for e, col in enumerate(cols):
         plt.sca(ax[e])
-        plt.plot(col, t['dvr1'], 'o', color=mpl.cm.magma(0.3), ms=2, mew=0, label='$\phi_1$ = -33.7$^\circ$')
-        plt.plot(col, t['dvr2'], 'o', color=mpl.cm.magma(0.5), ms=2, mew=0, label='$\phi_1$ = -30$^\circ$')
+        plt.plot(col, t['dvr1'], 'o', color=mpl.cm.magma(0.3), ms=2, mew=0, alpha=0.1, label='$\phi_1$ = -33.7$^\circ$')
+        plt.plot(col, t['dvr2'], 'o', color=mpl.cm.magma(0.5), ms=2, mew=0, alpha=0.1, label='$\phi_1$ = -30$^\circ$')
         
         plt.axhline(1, color='k', ls=':')
         plt.axhline(-1, color='k', ls=':')
@@ -2960,9 +3004,17 @@ def dvr_corr(label='v500w200', N=4000):
     plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
     plt.ylim(-10,10)
     
-    plt.tight_layout()
+    plt.tight_layout(w_pad=0)
     plt.savefig('../plots/dvr_impact_params.png')
 
+def dvr_corner():
+    """"""
+    sampler = np.load('../../gd1_spur/data/unique_samples_v500w200.npz')
+    print(np.shape(sampler['chain']))
+    ind = sampler['chain'][:,5]>6.7
+    chain = sampler['chain'][ind]
+    print(np.shape(chain))
+    #corner.corner(chain, bins=50, plot_datapoints=True)
 
 
 
