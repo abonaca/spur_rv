@@ -760,6 +760,16 @@ def loop_stars(N=1000, t_impact=0.5*u.Gyr, bnorm=0.06*u.kpc, bx=0.06*u.kpc, vnor
     
     plt.tight_layout()
 
+def output_vr_offset():
+    """"""
+    phi1_list = np.array([-33.7, -30])*u.deg
+    delta_phi1 = 1*u.deg
+    mu_vr = np.array([0,0])*u.km/u.s
+    sigma_vr = np.array([1,1])*u.km/u.s
+    
+    outdict = {'delta_phi1': delta_phi1, 'phi1_list': phi1_list, 'mu_vr': mu_vr, 'sigma_vr': sigma_vr}
+    pickle.dump(outdict, open('../data/vr_unperturbed.pkl', 'wb'))
+
 def tophat(x, base_level, hat_level, hat_mid, hat_width):
     ret=[]
     for xx in x:
