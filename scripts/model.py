@@ -2824,10 +2824,14 @@ def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass', dvrcut=Fal
     ekin = orbit.kinetic_energy()[0,:]
     energy = orbit.energy()[0,:]
     
-    if step>1:
+    label = 'GD-1 perturber'
+    
+    if step>0:
         #ind = np.abs(t['M']-6.9)<0.1
         ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
         ind_bound = ekin<epot
+        vsub = np.sqrt(t['vxsub']**2 + t['vysub']**2)
+        #ind_bound = (vsub>100) & (vsub<300)
         t = t[ind & ind_bound]
     
         c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
@@ -2839,6 +2843,8 @@ def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass', dvrcut=Fal
         epot = orbit.potential_energy()[0,:]
         ekin = orbit.kinetic_energy()[0,:]
         energy = orbit.energy()[0,:]
+        
+        label += '\n$\Delta$ $V_r$ < 1 km s$^{-1}$'
     
     cplane = coord.Galactic(l=np.linspace(0,360,100)*u.deg, b=np.zeros(100)*u.deg)
     cplane_eq = cplane.transform_to(coord.ICRS)
@@ -2852,6 +2858,12 @@ def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass', dvrcut=Fal
     g = Table(fits.getdata('/home/ana/projects/legacy/GD1-DR2/output/gd1_members.fits'))
     cgd1 = gc.GD1(phi1=g['phi1']*u.deg, phi2=g['phi2']*u.deg)
     cgd1_eq = cgd1.transform_to(coord.ICRS)
+    
+    tdm = Table.read('../data/DL17_DM.fits')
+    cdm = coord.SkyCoord(ra=tdm['ra']*u.deg, dec=tdm['dec']*u.deg, frame='icrs')
+    
+    ts = Table.read('../data/DL17_Stars.fits')
+    cs = coord.SkyCoord(ra=ts['ra']*u.deg, dec=ts['dec']*u.deg, frame='icrs')
     
     # coloring
     if colorby=='mass':
@@ -2915,25 +2927,38 @@ def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass', dvrcut=Fal
     #ax = fig.add_subplot(111)
     
     #im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=t['M'], zorder=0, s=14, vmin=6.5, vmax=7.5, cmap='magma', label='GD-1 perturber')
-    im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=clr, zorder=0, s=14, cmap=cmap, vmin=vmin, vmax=vmax, label='GD-1 perturber')
+    isort_clr = np.argsort(clr)[::-1]
+    #im = plt.scatter(ceq.ra.wrap_at(wangle).radian[isort_clr], ceq.dec.radian[isort_clr], rasterized=True, c=clr[isort_clr], zorder=0, s=5, cmap=cmap, vmin=vmin, vmax=vmax, label='GD-1 perturber')
+    im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=clr, zorder=0, s=5, cmap=cmap, vmin=vmin, vmax=vmax, label=label)
     
     #plt.plot(cplane_eq.ra.wrap_at(wangle).radian, cplane_eq.dec.radian, 'k-')
     #im = plt.scatter(cgal.l.wrap_at(wangle).radian, cgal.b.radian, rasterized=True, c=t['M'], zorder=0, s=14, vmin=6.5, vmax=7.5, cmap='magma', label='GD-1 perturber')
     #plt.plot(cplane.l.wrap_at(wangle).radian, cplane.b.radian, 'k-')
     #im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=ceq.distance.to(u.kpc).value, vmin=10, vmax=100, zorder=0, s=14, cmap='viridis')
-    if step>2:
+    if step>3:
         plt.quiver(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, ceq.pm_ra_cosdec.value, ceq.pm_dec.value, color=mpl.cm.magma(0.5), width=2, units='dots', headlength=3, scale_units='inches', scale=3, label='')
     
-    if step>0:
+    if step>1:
         #plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, c=c_sgr.distance.to(u.kpc).value, vmin=10, vmax=100, edgecolors='none', s=5, alpha=1, rasterized=True, label='Sagittarius\nLaw & Majewski (2010)')
-        plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, color='k', edgecolors='none', s=5, alpha=0.3, rasterized=True, label='Sagittarius (LM10)')
+        
+        #plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'ro', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius dark matter')
+        #plt.plot(cs.ra.wrap_at(wangle).radian, cs.dec.radian, 'o', color='teal', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius stars')
+        #plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, color='k', edgecolors='none', s=5, alpha=0.3, rasterized=True, label='Sagittarius (LM10)')
         
         #ind_mem = g['pmem']>0.5
         #plt.scatter(cgd1_eq.ra.wrap_at(wangle).radian[ind_mem], cgd1_eq.dec.radian[ind_mem], color='forestgreen', edgecolors='none', s=5, alpha=0.3, rasterized=True, label='GD-1')
         
         psort = np.argsort(cplane_eq.ra.wrap_at(wangle))
         plt.plot(cplane_eq.ra.wrap_at(wangle).radian[psort], cplane_eq.dec.radian[psort], 'k-', lw=0.5, label='Galactic plane')
-    if step>2:
+    
+    if step==2:
+        plt.plot(cs.ra.wrap_at(wangle).radian, cs.dec.radian, 'o', color='teal', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius (DL17)')
+        plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, color='k', edgecolors='none', s=5, alpha=0.3, rasterized=True, label='Sagittarius (LM10)')
+    
+    if step==3:
+        plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'ro', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius DM (DL17)')
+    
+    if step>3:
         ind = np.abs(tsgr['beta']+10)<2
         plt.quiver(c_sgr.ra.wrap_at(wangle).radian[ind], c_sgr.dec.radian[ind], c_sgr.pm_ra_cosdec.value[ind], c_sgr.pm_dec.value[ind], width=2, units='dots', headlength=3, scale=3, scale_units='inches', alpha=1, label='')
 
@@ -2977,6 +3002,116 @@ def sgr_clusters():
     plt.plot(tgc['RA'], tgc['DEC'], 'o', color='orange')
     plt.quiver(tgc['RA'], tgc['DEC'], tgc['PMRA'], tgc['PMDEC'], color='orange', width=2, units='dots', headlength=3, scale=10, scale_units='inches')
 
+def sgr_dm():
+    """"""
+    tdm = Table.read('../data/DL17_DM.fits')
+    cdm = coord.SkyCoord(ra=tdm['ra']*u.deg, dec=tdm['dec']*u.deg, frame='icrs')
+    
+    ts = Table.read('../data/DL17_Stars.fits')
+    cs = coord.SkyCoord(ra=ts['ra']*u.deg, dec=ts['dec']*u.deg, frame='icrs')
+    
+    plt.close()
+    fig = plt.figure(figsize=(12,5.2))
+    ax = fig.add_subplot(111, projection='mollweide')
+    
+    plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'ko', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius dark matter')
+    plt.plot(cs.ra.wrap_at(wangle).radian, cs.dec.radian, 'o', color='darkorange', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius stars')
+    
+    plt.xlabel('R.A. [deg]')
+    plt.ylabel('Dec [deg]')
+    plt.grid(True)
+    
+    plt.tight_layout()
+
+def sgr_dm_kde(ndim=6):
+    """"""
+    tdm = Table.read('../data/DL17_DM.fits')
+    cdm = coord.Galactocentric(x=tdm['X_gal']*u.kpc, y=tdm['Y_gal']*u.kpc, z=tdm['Z_gal']*u.kpc, v_x=tdm['Vx_gal']*u.km/u.s, v_y=tdm['Vy_gal']*u.km/u.s, v_z=tdm['Vz_gal']*u.km/u.s)
+    cdm_eq = cdm.transform_to(coord.ICRS)
+    
+    dm = np.array([cdm_eq.ra.degree, cdm_eq.dec.degree, cdm_eq.distance.value, cdm_eq.radial_velocity.value, cdm_eq.pm_ra_cosdec.to(u.mas/u.yr).value, cdm_eq.pm_dec.to(u.mas/u.yr).value])
+    
+    # perturber
+    t = Table.read('../data/perturber_now_v500w200_r099856.fits')
+    ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
+    t = t[ind]
+    c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+    ceq = c.transform_to(coord.ICRS)
+    
+    obs = np.array([ceq.ra.degree, ceq.dec.degree, ceq.distance.value, ceq.radial_velocity.value, ceq.pm_ra_cosdec.to(u.mas/u.yr).value, ceq.pm_dec.to(u.mas/u.yr).value])
+    
+    kernel = scipy.stats.gaussian_kde(dm[:ndim])
+    prob = kernel(obs[:ndim])
+    
+    #if ndim==3:
+        #vmin = 1e-7
+        #vmax = 8e-7
+    #elif ndim==4:
+        #vmin = 2e-10
+        #vmax = 10e-10
+    #elif ndim==5:
+        #vmin = 2e-10
+        #vmax = 7e-10
+    #else:
+        #vmin = 1.5e-10
+        #vmax = 4e-10
+    
+    vmin, vmax = np.percentile(prob, [75, 99.9])
+    #vmin = np.percentile(prob, 75)
+    print(np.percentile(prob, [75, 90,95,99.9]))
+    
+    plt.close()
+    fig = plt.figure(figsize=(12,5.2))
+    ax = fig.add_subplot(111, projection='mollweide')
+    
+    isort = np.argsort(prob)
+    im = plt.scatter(ceq.ra.wrap_at(wangle).radian[isort], ceq.dec.radian[isort], rasterized=True, c=prob[isort], zorder=0, s=5, cmap='binary', norm=mpl.colors.LogNorm(), vmin=vmin, vmax=vmax)
+    
+    #plt.hist(prob, bins=30)
+    
+    plt.xlabel('R.A. [deg]')
+    plt.ylabel('Dec [deg]')
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig('../plots/perturber_sky_sgrdm_weighted_ndim{:1d}.png'.format(ndim))
+
+def perturber_vs_dm():
+    """"""
+    t = Table.read('../data/perturber_now_v500w200_r099856.fits')
+    ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
+    t = t[ind]
+    c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+    ceq = c.transform_to(coord.ICRS)
+    
+    tdm = Table.read('../data/DL17_DM.fits')
+    cdm = coord.Galactocentric(x=tdm['X_gal']*u.kpc, y=tdm['Y_gal']*u.kpc, z=tdm['Z_gal']*u.kpc, v_x=tdm['Vx_gal']*u.km/u.s, v_y=tdm['Vy_gal']*u.km/u.s, v_z=tdm['Vz_gal']*u.km/u.s)
+    cdm_eq = cdm.transform_to(coord.ICRS)
+    #print(tdm.colnames)
+    
+    obs = [ceq.dec, ceq.distance, ceq.pm_ra_cosdec.to(u.mas/u.yr), ceq.pm_dec.to(u.mas/u.yr), ceq.radial_velocity]
+    dm = [cdm_eq.dec, cdm_eq.distance, cdm_eq.pm_ra_cosdec.to(u.mas/u.yr), cdm_eq.pm_dec.to(u.mas/u.yr), cdm_eq.radial_velocity]
+    ylims = [[-90,90], [0,200], [-1, 1], [-1, 1], [-500, 500]]
+    ylabels = ['Dec', 'd', '$\mu_\\alpha$', '$\mu_\delta$', '$V_r$']
+    
+    plt.close()
+    fig, ax = plt.subplots(5,1, figsize=(10,12), sharex=True)
+    
+    for i in range(5):
+        plt.sca(ax[i])
+        plt.plot(cdm_eq.ra, dm[i], 'k.', mew=0, alpha=0.5, label='Sgr DM (DL17)')
+        plt.plot(ceq.ra, obs[i], 'r.', ms=3, mew=0, alpha=0.5, label='GD-1 perturber')
+        
+        plt.ylim(ylims[i])
+        plt.ylabel(ylabels[i])
+
+    plt.xlim(0,360)
+    plt.xlabel('R.A.')
+    plt.sca(ax[0])
+    plt.legend(fontsize='small', markerscale=2, handlelength=1)
+    plt.tight_layout(h_pad=0)
+    plt.savefig('../plots/perturber_sgr_6d.png')
+
 # velocity correlations
 
 def dvr_corr(label='v500w200', N=4000):
@@ -3002,8 +3137,8 @@ def dvr_corr(label='v500w200', N=4000):
     
     for e, col in enumerate(cols):
         plt.sca(ax[e])
-        plt.plot(col, t['dvr1'], 'o', color=mpl.cm.magma(0.3), ms=2, mew=0, alpha=0.1, label='$\phi_1$ = -33.7$^\circ$')
-        plt.plot(col, t['dvr2'], 'o', color=mpl.cm.magma(0.5), ms=2, mew=0, alpha=0.1, label='$\phi_1$ = -30$^\circ$')
+        plt.plot(col, t['dvr1'], 'o', color=mpl.cm.magma(0.3), ms=2, mew=0, alpha=0.2, label='$\phi_1$ = -33.7$^\circ$')
+        plt.plot(col, t['dvr2'], 'o', color=mpl.cm.magma(0.5), ms=2, mew=0, alpha=0.2, label='$\phi_1$ = -30$^\circ$')
         
         plt.axhline(1, color='k', ls=':')
         plt.axhline(-1, color='k', ls=':')
@@ -3016,6 +3151,9 @@ def dvr_corr(label='v500w200', N=4000):
     
     plt.tight_layout(w_pad=0)
     plt.savefig('../plots/dvr_impact_params.png')
+
+def dvr_elz():
+    """"""
 
 def dvr_corner():
     """"""
