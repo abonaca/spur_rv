@@ -2311,6 +2311,63 @@ def diagnostic_summary_all(cmd_mem=True, color_by='phi1'):
     pp.close()
 
 
+def vrot_field():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
+    t = t[ind]
+    print(t.colnames)
+    
+    plt.close()
+    fig, ax = plt.subplots(1,2,figsize=(10,8), gridspec_kw=dict(width_ratios=[4,1]))
+    
+    plt.sca(ax[0])
+    plt.plot(t['field']*240 + t['fibID'], t['Vrot'], 'k.')
+    
+    plt.ylim(0,6)
+    plt.xlabel('Fiber ID + Field x 240')
+    plt.ylabel('$V_{rot}$ [km s$^{-1}$]')
+    
+    plt.sca(ax[1])
+    for i in range(8):
+        ind = t['field'] == i+1
+        plt.hist(t['Vrot'][ind], bins=np.linspace(0, 6, 20), histtype='step', color=mpl.cm.magma(i/8), label='Field {:d}'.format(i+1), orientation='horizontal', lw=np.median(t['Vrot'][ind]))
+    
+    plt.legend()
+    plt.axis('off')
+    
+    plt.tight_layout(w_pad=0)
+
+def vrot_sigma():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
+    t = t[ind]
+    mem = get_members(t)
+    
+    plt.close()
+    plt.figure()
+    
+    for i in range(8):
+        ind = t['field']==i+1
+        med = np.median(t['Vrot'][ind])
+        std = np.std(t['delta_Vrad'][ind & mem])
+        plt.plot(med, std, 'ko')
+        plt.text(med+0.05, std+0.05, '{:d}'.format(i+1), fontsize='small')
+    
+    line = np.linspace(0.7, 2.5,10)
+    #plt.plot(line, line, 'k:')
+    
+    plt.xlabel('Field median $V_{rot}$ [km s$^{-1}$]')
+    plt.ylabel('Field GD-1 member $\sigma_{V_{rad}}$ [km s$^{-1}$]')
+    plt.xlim(0.7, 2.5)
+    plt.ylim(0.7, 2.5)
+    plt.gca().xaxis.set_major_locator(mpl.ticker.MultipleLocator(0.2))
+    plt.gca().yaxis.set_major_locator(mpl.ticker.MultipleLocator(0.2))
+    plt.gca().set_aspect('equal')
+    plt.tight_layout()
+    plt.savefig('../plots/vrot_sigma.png')
+
 def afeh_kinematics():
     """"""
     t = Table.read('../data/master_catalog.fits')
@@ -2353,3 +2410,50 @@ def afeh_kinematics():
     #plt.ylim(-10,10)
 
     plt.tight_layout()
+
+def afeh_clusters():
+    """"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
+    t = t[ind]
+    mem = get_members(t)
+    t = t[mem]
+    
+    clusters = ['M13', 'M3', 'M107', 'M67']
+    clusters = ['M13', 'M107', 'M67']
+
+    plt.close()
+    plt.figure(figsize=(12,6))
+    
+    plt.plot(t['FeH'], t['aFe'], 'ko', mew=0)
+    plt.errorbar(t['FeH'], t['aFe'], xerr=t['std_FeH'], yerr=t['std_aFe'], fmt='none', color='k', alpha=0.5, lw=0.5)
+    plt.text(np.median(t['FeH']), 0.62, 'GD-1', va='bottom', color='k', fontsize='small')
+    
+    print(np.median(t['FeH']))
+    print('GD-1', np.percentile(t['SNR'], [10, 50, 90]))
+    print('FeH', np.std(t['FeH']), np.median(t['std_FeH']))
+    print('aFe', np.std(t['aFe']), np.median(t['std_aFe']))
+    
+    for e, cl in enumerate(clusters):
+        tc = Table.read('../data/{:s}_members.fits'.format(cl))
+        color = mpl.cm.magma((e+1)/4)
+        med = np.median(tc['FeH'])
+        
+        plt.plot(tc['FeH'], tc['aFe'], 'o', color=color, mew=0)
+        plt.errorbar(tc['FeH'], tc['aFe'], xerr=tc['std_FeH'], yerr=tc['std_aFe'], fmt='none', color=color, alpha=0.5, lw=0.5)
+    
+        plt.text(med, 0.62, '{:s}'.format(clusters[e]), va='bottom', color=color, fontsize='small')
+        
+        print(clusters[e], np.percentile(tc['SNR'], [10, 50, 90]))
+        print('FeH', np.std(tc['FeH']), np.std(tc['FeH'])/np.median(tc['std_FeH']))
+        print('aFe', np.std(tc['aFe']), np.std(tc['aFe'])/np.median(tc['std_aFe']))
+        
+    plt.xlabel('[Fe/H]')
+    plt.ylabel('[$\\alpha$/Fe]')
+    plt.xlim(-3, 0.5)
+    plt.ylim(-0.2, 0.6)
+    
+    plt.gca().set_aspect('equal')
+    plt.tight_layout()
+    plt.savefig('../plots/afeh_clusters.png')
