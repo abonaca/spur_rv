@@ -6,6 +6,19 @@
 *.npz
 *.bin
 *.h5
+*.hdf5
+*.txt
+*.npy
+*.pkl3
+*.yml
+*.par
+
+# latex
+*.pdf
+*.aux
+*.bbl
+*.out
+*.backup
 
 # scripts
 *.sh
