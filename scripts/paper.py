@@ -155,6 +155,11 @@ def dvr():
         plt.errorbar(t['phi1'][ind], t['Vrad'][ind] - vr, yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt='o', color=colors[e], zorder=0, lw=2, alpha=1)
         
     # medians
+    phi1_med = np.zeros(8)
+    vr_med = np.zeros(8)
+    vr_sig = np.zeros(8)
+    vr_std = np.zeros(8)
+    
     for e, ind in enumerate([stream, spur]):
         plt.sca(ax[3])
         fields = np.unique(t['field'][ind])
@@ -164,6 +169,14 @@ def dvr():
             vr = qpoly(t['phi1'][ind & ifield])
             plt.errorbar(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), yerr=np.std(t['Vrad'][ind & ifield]), fmt='none', color='k', lw=2, zorder=ee+2)
             plt.plot(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), 'o', color=colors[e], ms=10, mec='k', mew=2, zorder=ee+3)
+            
+            phi1_med[f-1] = np.median(t['phi1'][ind & ifield])
+            vr_med[f-1] = np.median(t['Vrad'][ind & ifield] - vr)
+            vr_sig[f-1] = np.std(t['Vrad'][ind & ifield])
+            vr_std[f-1] = np.median(t['std_Vrad'][ind & ifield])
+    
+    print(vr_med[0] - vr_med[5], vr_std[0], vr_std[5])
+    print(vr_med[2] - vr_med[1], vr_std[2], vr_std[1])
 
     plt.sca(ax[0])
     plt.scatter(g['phi1'], g['phi2'], s=g['pmem']*4, c=g['pmem'], cmap=mpl.cm.binary, vmin=0.5, vmax=1.1, zorder=0, label='')

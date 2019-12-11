@@ -103,6 +103,7 @@ On average, we dedicated $\gtrsim170$ fibers to science targets per field, for a
 Up to 40 of the remaining fibers were used to estimate the sky emission.
 We used the \texttt{RV31} filter covering the Mg~b triplet and observed each field for 2.25~hours (except for field 3 which was observed for 2~hours due to scheduling constraints).
 With $3\times2$ spectral and spatial binning of the CCD pixels, we achieved a signal-to-noise ratio $S/N\approx2$ at $g=20$ and an effective resolution $R\approx32,000$.
+% - $S/N>3$ cut for analysis.
 % Representative spectra in the 90th, 50th, and 10th percentile of $S/N$ are shown in rows 2 through 4 of Figure~\ref{fig:spectra}.
 
 The 2D spectra were reduced by \package{HSRED}~v2.1\footnote{\url{https://bitbucket.org/saotdc/hsred/}}.
@@ -112,7 +113,6 @@ We then used the \package{MINESweeper} code \citep{cargile2019} to forward-model
 Radial velocities are measured to better than $\lesssim1\,\kms$ (median $\sigma_{V_r}=0.3\,\kms$), while typical uncertainties for [Fe/H] and [$\alpha$/Fe] are $0.07$\,dex and $0.05$\,dex, respectively.
 Despite the sub-$\kms$ statistical precision, sky-emission lines show variations of $\approx1\,\kms$ across the two camera chips and between different exposures.
 Our overall kinematic precision is therefore systematics-dominated at $\approx1\,\kms$, comparable to that typically achieved with Hectochelle \citep[e.g.,][]{caldwell2017}, and sufficient to resolve the GD-1 internal dispersion \citep{malhan2019}.
-- $S/N>3$ cut for analysis
 
 \begin{figure*}
 \begin{center}
@@ -136,13 +136,11 @@ The isochrone selection box (dashed pink) is tighter around the GD-1's main sequ
 A total of 82 stars satisfy the proper motion and CMD selection criteria.
 
 Most of these likely members have small radial velocity offsets from the GD-1's orbit (Figure~\ref{fig:members}, middle panel).
-% - refit only 4 stream fields, yield 6d position in the gala fiducial potential:
 We used the orbital solution from \citet{pwb}, which is $\Delta V_r\approx10\,\kms$ offset from Hectochelle radial velocities, so we further select 50 more likely members with velocity offsets $|\Delta V_r| < 7\,\kms$.
 Stars from both the main stream and the spur satisfy these criteria, indicating that the spur is dynamically associated with GD-1.
 We explore this connection in more detail in Section~\ref{sec:kinematics}.
 % 
 Thus selected GD-1 members are predominantly metal-poor, as found by \citet{malhan2019}, so we adopt $-2.8<\feh<1.9$ as our final criterion for GD-1 membership (Figure~\ref{fig:members}, right).
-% This produces a sample of 54 most likely GD-1 stars.
 Although wide, this metallicity selection removes only two kinematically identified members for a final sample of 47 most likely GD-1 stars.
 - make available on zenodo
 
@@ -169,26 +167,24 @@ At a fixed location along the stream, the median radial velocities of the main s
 \end{figure}
 
 We summarize radial velocity structure of the GD-1 stream in Figure~\ref{fig:vr}.
-The top panel shows the on-sky distribution of likely GD-1 members identified using \gaia\ proper motions \citep[small points,][]{pwb}, and highlights stars with a measured radial velocity \citep[blue for this work, gray for literature data from][]{koposov2010}.
+The top panel shows the on-sky distribution of likely GD-1 members identified using \gaia\ proper motions \citep[small points,][]{pwb}, and highlights stars with a measured radial velocity \citep[orange for this work, gray for literature data from][]{koposov2010}.
 The second panel shows radial velocity as a function of the $\phi_1$ stream coordinate.
-Our high-resolution measurements show a strong radial velocity gradient along the stream that is largely consistent with, but somewhat offset from and significantly colder than the literature measurements (obtained at a lower-resolution).
-The phase space distribution of a stream constrains its orbit \citep[e.g.,][]{koposov2010}, so we next search for orbits that fit the updated sample of GD-1 radial velocities.
+Our data include the first radial velocity measurements in the GD-1 spur (dark orange), and they are consistent with radial velocities in the main GD-1 stream (light orange), further supporting the case for their common origin.
+Our measurements show a strong radial velocity gradient along the stream that is largely consistent with, but somewhat offset from the literature measurements (obtained at a lower-resolution).
+We next search for orbits that fit the updated sample of GD-1 radial velocities.
+% The phase space distribution of a stream constrains its orbit \citep[e.g.,][]{koposov2010}, so we next search for orbits that fit the updated sample of GD-1 radial velocities.
 
 We adopted the GD-1 orbit-fitting procedure from \citet{pwb}, including their fixed Milky Way model similar to \citet{bovy2015} and their compilation of 6D stream data which we augmented with more precise radial velocities from this work.
-% We fit the GD-1 orbit assuming a fixed Milky Way model \citep{pwb, bovy2015}.
-% We augmented the 6D data used by \citet{pwb} with more precise radial velocities from this work, and maximized the likelihood of the orbit using the \package{scipy} implementation of the BFGS algorithm (a quasi-Newton method for finding local stationary point of a function).
-% We maximized the likelihood of the orbit given sky positions and proper motions from \citet{pwb}, mean distance from \citet{koposov2010} and radial velocities from \citet{koposov2010} and this work.
-% For optimization we used the \package{scipy} implementation of the BFGS algorithm, a quasi-Newton method for finding local stationary points of a function.
-% The best-fit orbit in the adopted gravitational potential is defined by a 6D phase space coordinate:
-% - give 6d point, potential
-The sky positions and radial velocity gradient of the best-fit orbit are shown with black lines in the first and second panel of Figure~\ref{fig:vr}, respectively.
-The best-fit orbit has the pericenter at 13.8\,kpc and the apocenter at 21.5\,kpc, making the updated orbital solution slightly more circular, but otherwise similar to the orbit derived in \citet{pwb}.
-% The updated GD-1 orbit is slightly more circular than derived in \citet{pwb}, with the pericenter distance unchanged at 13.8\,kpc, and the apocenter at 21.5\,kpc (compared to 23\,kpc previously).
+The radial velocity gradient of the best-fit orbit is shown with a teal line in the second panel of Figure~\ref{fig:vr}.
+The best-fit orbit has a pericenter at 13.8\,kpc and an apocenter at 21.5\,kpc, making the updated orbital solution slightly more circular, but otherwise similar to the orbit derived in \citet{pwb}.
 
-
-- subtract orbit to check residuals
--- intrinsic dispersion, compare to tangential velocity
-- offsets (medians per field)
+In the third and the fourth panel of Figure~\ref{fig:vr} we show the radial velocity offsets from the best-fit GD-1 orbit (teal).
+Overall, our high-resolution measurements show little deviation from the orbital velocity and reveal a kinematically cold stream with a much lower dispersion than previously measured (third panel).
+Accounting for measurement uncertainties, the intrinsic velocity dispersion is x in the main stream and y in the spur.
+To quantify the relative motion between the stream and the spur, we compare the median radial velocity of GD-1 members observed in individual Hectochelle fields (large symbols with black edges in the fourth panel, the errorbars are the standard deviation).
+At two locations where we observed the main stream and the spur in parallel ($\phi_1=-33.7^\circ, -30^\circ$), the relative radial velocity is smaller than $1\,\kms$ and comparable to the measurement uncertainty.
+To a high degree, the GD-1 spur is comoving with the stream, which puts strong constraints on its formation scenarios.
+% -- intrinsic dispersion, compare to tangential velocity
 
 
 \section{Discussion}
