@@ -2809,7 +2809,7 @@ def present_sky(label='dynesty_vr', fvr=0, N=2000, step=0):
     
     plt.savefig('../plots/nest_perturber_today_sgr_{:d}.png'.format(step), dpi=200)
 
-def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass', dvrcut=False):
+def present_sgr_old(label='v500w200', N=99856, step=0, colorby='mass', dvrcut=False):
     """"""
     
     t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
@@ -2826,9 +2826,12 @@ def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass', dvrcut=Fal
     
     label = 'GD-1 perturber'
     
+    ind = (np.abs(t['dvr1'])<0.5) & (np.abs(t['dvr2'])<0.5)
+    
     if step>0:
         #ind = np.abs(t['M']-6.9)<0.1
         ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
+        #ind = (np.abs(t['dvr1'])<0.5) & (np.abs(t['dvr2'])<0.5)
         ind_bound = ekin<epot
         vsub = np.sqrt(t['vxsub']**2 + t['vysub']**2)
         #ind_bound = (vsub>100) & (vsub<300)
@@ -2953,10 +2956,12 @@ def present_sgr_old(label='v500w200', N=1000, step=0, colorby='mass', dvrcut=Fal
     
     if step==2:
         plt.plot(cs.ra.wrap_at(wangle).radian, cs.dec.radian, 'o', color='teal', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius (DL17)')
-        plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, color='k', edgecolors='none', s=5, alpha=0.3, rasterized=True, label='Sagittarius (LM10)')
+        plt.scatter(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, color='limegreen', edgecolors='none', s=5, alpha=0.3, rasterized=True, label='Sagittarius (LM10)')
     
     if step==3:
-        plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'ro', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius DM (DL17)')
+        plt.plot(c_sgr.ra.wrap_at(wangle).radian, c_sgr.dec.radian, 'o', color='limegreen', ms=2, mew=0, alpha=0.1, rasterized=True, label='Sagittarius (LM10)')
+        plt.plot(cs.ra.wrap_at(wangle).radian, cs.dec.radian, 'o', color='teal', ms=2, mew=0, alpha=0.1, rasterized=True, label='Sagittarius (DL17)')
+        plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'o', color='darkorange', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius DM (DL17)')
     
     if step>3:
         ind = np.abs(tsgr['beta']+10)<2
