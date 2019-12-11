@@ -12,11 +12,13 @@
 *.pkl3
 *.yml
 *.par
+*.cl
 
 # latex
 *.pdf
 *.aux
 *.bbl
+*.blg
 *.out
 *.backup
 
