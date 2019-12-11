@@ -1806,7 +1806,7 @@ def get_members(t, full=False):
     ind = (poly_wide[:,1]<18.3) & (poly_wide[:,1]>14)
     poly_low = poly_wide[ind]
 
-    ind = (poly_narrow[:,1]<20.5) & (poly_narrow[:,1]>18.3)
+    ind = (poly_narrow[:,1]<20.6) & (poly_narrow[:,1]>18.3)
     poly_med = poly_narrow[ind]
     
     # manual union
@@ -1816,7 +1816,7 @@ def get_members(t, full=False):
     
     # radial velocity selection
     #vrlims = np.array([-20, -1])
-    vrlims = np.array([-5,5])
+    vrlims = np.array([-7,7])
     vrmem = (t['delta_Vrad']>vrlims[0]) & (t['delta_Vrad']<vrlims[1])
     
     # feh selection
@@ -2457,3 +2457,4 @@ def afeh_clusters():
     plt.gca().set_aspect('equal')
     plt.tight_layout()
     plt.savefig('../plots/afeh_clusters.png')
+
