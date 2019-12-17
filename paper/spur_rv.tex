@@ -142,13 +142,15 @@ We explore this connection in more detail in Section~\ref{sec:kinematics}.
 % 
 Thus selected GD-1 members are predominantly metal-poor, as found by \citet{malhan2019}, so we adopt $-2.8<\feh<1.9$ as our final criterion for GD-1 membership (Figure~\ref{fig:members}, right).
 Although wide, this metallicity selection removes only two kinematically identified members for a final sample of 47 most likely GD-1 stars.
-- make available on zenodo
+-- membership binary here: probabilistically way to go in the future
+- whole spec sample available on zenodo w separate flags
 
 In addition to determining membership, chemical abundances of stream stars are the best way to differentiate between a globular cluster and a dwarf galaxy origin in the absence of a progenitor.
 Abundance spreads are typically a signature of a dwarf galaxy origin \citep[e.g.,][]{willman2012}, however, globular clusters observed with the same instrumental setup as used here (although at a higher signal-to-noise ratio) show spreads on the order of $\approx0.05-0.1$\,dex \citep{cargile2019}.
 The standard deviations in $\feh$ and $\afe$ of GD-1 members are 0.17\,dex and 0.16\,dex, respectively, and are almost entirely accounted for by the measurement uncertainties (median $\sigma_\feh=0.16$\,dex, $\sigma_\afe=0.14$\,dex, larger than our typical target since most of the members are faint main-sequence stars).
 These data suggest that GD-1 is likely a disrupted globular cluster, as previously inferred from its narrow width \citep[e.g.,][]{grillmair2006} and cold kinematics \citep[e.g.,][]{malhan2019}.
 More detailed abundances will enable an even more efficient membership selection, and a definitive classification of GD-1's progenitor.
+-- chemistry: spread similar to gc, check w multipop (old)
 
 
 \section{GD-1 kinematics}
@@ -181,10 +183,16 @@ The best-fit orbit has a pericenter at 13.8\,kpc and an apocenter at 21.5\,kpc, 
 In the third and the fourth panel of Figure~\ref{fig:vr} we show the radial velocity offsets from the best-fit GD-1 orbit (teal).
 Overall, our high-resolution measurements show little deviation from the orbital velocity and reveal a kinematically cold stream with a much lower dispersion than previously measured (third panel).
 Accounting for measurement uncertainties, the intrinsic velocity dispersion is x in the main stream and y in the spur.
+% -- intrinsic dispersion, compare to tangential velocity
+- consistent w much colder than we're seeing
+- possible not reaching pure photon limit due to hectochelle systematics
+- but, more comfortable getting higher-res spectroscopy
+In a multi-year study of stars in the field of the MW globular cluster NGC2419 using MMT/Hectochelle with the same setup as used here, repeated measurements of stars indicate an rms velocity measurement of $0.6\,\kms$ can be achieved, which is similar to the mean uncertainty derived for individual measurements (Caldwell, Freeman, Walker in preparation).
+
+
 To quantify the relative motion between the stream and the spur, we compare the median radial velocity of GD-1 members observed in individual Hectochelle fields (large symbols with black edges in the fourth panel, the errorbars are the standard deviation).
 At two locations where we observed the main stream and the spur in parallel ($\phi_1=-33.7^\circ, -30^\circ$), the relative radial velocity is smaller than $1\,\kms$ and comparable to the measurement uncertainty.
 To a high degree, the GD-1 spur is comoving with the stream, which puts strong constraints on its formation scenarios.
-% -- intrinsic dispersion, compare to tangential velocity
 
 
 \section{Discussion}
@@ -200,16 +208,23 @@ Solutions that satisfy the measured radial velocity offset, $|\Delta V_r|<1\kms$
 \label{fig:skybox}
 \end{figure}
 
-- improvements:
--- velocities: only 2 overlapping fields, would be great to have more, more stars in general, though hard because so faint
--- velocities: very cold, worth doing stream-wide kinematic survey
--- chemistry: spread similar to gc, check w multipop (old)
--- membership: probabilistically way to go in the future
+We presented high-resolution spectroscopy at eight locations in the GD-1 stellar stream, distributed along the main stream and an adjacent spur.
+With the goal of discerning the association between the stream and the spur, we obtained the most precise radial velocities of GD-1 to date (statistical uncertainty $\lesssim0.5\,\kms$).
+Serendipitously, these data update the GD-1's orbit (\S\,\ref{sec:kinematics}), and will improve constraints on the Milky Way's gravitational potential in future modeling of GD-1 \citep[similar to, e.g.,][]{koposov2010, bowden2015, bovy2016}.
+The relative radial velocity between the stream and the spur is small, $\Delta V_r\lesssim1\,\kms$, which, combined with their similar metallicity, $\feh\approx-2.2$, suggests that the spur is a part of GD-1 that has been perturbed from an original orbit along the stream.
+We conclude with a discussion of implications that a comoving spur places on its formation mechanism and an outlook for dynamical inferences about the structure of the Milky Way if features like the GD-1 spur are common in other streams.
 
+
+% - improvements:
+% -- velocities: only 2 overlapping fields, would be great to have more, more stars in general, though hard because so faint
+% -- velocities: very cold, worth doing stream-wide kinematic survey
+
+% - implications for origin
+% - proposed scenarios (or do it in the intro?)
 - implications for encounter scenario:
 - rules out many young events, leaves old
-- something from actions
-- energy spread large, need more precise pm, gaia dr3, hst program to nail down
+% - something from actions
+% - energy spread large, need more precise pm, gaia dr3, hst program to nail down
 
 - sky predictions
 - sgr association
@@ -218,6 +233,7 @@ Solutions that satisfy the measured radial velocity offset, $|\Delta V_r|<1\kms$
 - perhaps can explain other gd-1 features
 -- comment on disk impact, other encounters
 
+- given the number of peculiarities observed \citep{pwb, jhelum, pal5}, this motivates comprehensive spectroscopic surveys of streams at a high resolution
 - new opportunity for directly predicting where the perturber is now (say in the abstract too?)
 - would enable direct follow up
 - not just statistical search any more, but in the domain of multimessenger astronomy
@@ -230,6 +246,7 @@ Acknowledgments:
 - lars
 - sean, tdc
 - mmt, hectochelle
+- doug
 
 \bibliographystyle{aasjournal}
 \bibliography{spur_rv}
