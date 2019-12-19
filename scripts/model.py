@@ -3093,10 +3093,23 @@ def perturber_vs_dm():
     cdm = coord.Galactocentric(x=tdm['X_gal']*u.kpc, y=tdm['Y_gal']*u.kpc, z=tdm['Z_gal']*u.kpc, v_x=tdm['Vx_gal']*u.km/u.s, v_y=tdm['Vy_gal']*u.km/u.s, v_z=tdm['Vz_gal']*u.km/u.s)
     cdm_eq = cdm.transform_to(coord.ICRS)
     #print(tdm.colnames)
+
+    tgc = Table.read('/home/ana/projects/gd1_spur/data/Vasiliev-globclust_space.txt', format='ascii', delimiter=' ', data_start=1)
+    sgr_gc = ['NGC6715(M54)', 'Terzan7', 'Terzan8', 'Arp2', 'Pal12', 'Whiting1', 'NGC2419', 'NGC5824']
+    #sgr_gc = ['NGC6715(M54)']
+    ind_sgr = np.isin(tgc['Name'], sgr_gc)
+    tgc = tgc[ind_sgr]
+    print(tgc.colnames)
+    
+    #x M 54, x Arp 2, x Pal 12, x Terzan 7, x Terzan 8, and, x NGC 2419, x NGC 5824 and x Whiting 1
+    
+    cgc_eq = coord.SkyCoord(ra=tgc['RA']*u.deg, dec=tgc['DEC']*u.deg, distance=tgc['D']*u.kpc, radial_velocity=tgc['Vlos']*u.km/u.s, pm_ra_cosdec=tgc['PMRA']*u.mas/u.yr, pm_dec=tgc['PMDEC']*u.mas/u.yr, frame='icrs')
+    
     
     obs = [ceq.dec, ceq.distance, ceq.pm_ra_cosdec.to(u.mas/u.yr), ceq.pm_dec.to(u.mas/u.yr), ceq.radial_velocity]
     dm = [cdm_eq.dec, cdm_eq.distance, cdm_eq.pm_ra_cosdec.to(u.mas/u.yr), cdm_eq.pm_dec.to(u.mas/u.yr), cdm_eq.radial_velocity]
-    ylims = [[-90,90], [0,200], [-1, 1], [-1, 1], [-500, 500]]
+    glc = [cgc_eq.dec, cgc_eq.distance, cgc_eq.pm_ra_cosdec.to(u.mas/u.yr), cgc_eq.pm_dec.to(u.mas/u.yr), cgc_eq.radial_velocity]
+    ylims = [[-90,90], [0,200], [-3, 3], [-3, 1], [-500, 500]]
     ylabels = ['Dec', 'd', '$\mu_\\alpha$', '$\mu_\delta$', '$V_r$']
     
     plt.close()
@@ -3106,14 +3119,23 @@ def perturber_vs_dm():
         plt.sca(ax[i])
         plt.plot(cdm_eq.ra, dm[i], 'k.', mew=0, alpha=0.5, label='Sgr DM (DL17)')
         plt.plot(ceq.ra, obs[i], 'r.', ms=3, mew=0, alpha=0.5, label='GD-1 perturber')
+        plt.plot(cgc_eq.ra, glc[i], 'o', color='orange', ms=6, mew=1, mec='k', alpha=1, label='Globular clusters')
         
         plt.ylim(ylims[i])
         plt.ylabel(ylabels[i])
+    
+    i = 2
+    plt.sca(ax[i])
+    plt.errorbar(cgc_eq.ra.value, glc[i].value, yerr=tgc['ePMRA'], fmt='none', color='orange', lw=2)
+
+    i = 3
+    plt.sca(ax[i])
+    plt.errorbar(cgc_eq.ra.value, glc[i].value, yerr=tgc['ePMDEC'], fmt='none', color='orange', lw=2)
 
     plt.xlim(0,360)
     plt.xlabel('R.A.')
     plt.sca(ax[0])
-    plt.legend(fontsize='small', markerscale=2, handlelength=1)
+    plt.legend(fontsize='x-small', markerscale=2, handlelength=1, ncol=3)
     plt.tight_layout(h_pad=0)
     plt.savefig('../plots/perturber_sgr_6d.png')
 
@@ -3170,4 +3192,292 @@ def dvr_corner():
     #corner.corner(chain, bins=50, plot_datapoints=True)
 
 
+import scipy.spatial
+
+def corner(full=False, label='', p=5):
+    """"""
+    #sampler = np.load('../data/unique_samples{}.npz'.format(label))
+    sampler = np.load('../../gd1_spur/data/unique_samples_v500w200.npz')
+    
+    models = np.unique(sampler['chain'], axis=0)
+    models = sampler['chain']
+    lnp = sampler['lnp']
+    pp = np.percentile(lnp, p)
+    
+    ind = lnp>=pp
+    models = models[ind]
+    lnp = lnp[ind]
+    
+    params = ['T', 'bx', 'by', 'vx', 'vy', 'logM', 'rs']
+    print(np.shape(models), np.shape(models)[0]/np.shape(sampler['chain'])[0])
+    Npar = np.shape(models)[1]
+    
+    if full==False:
+        abr = models[:,:-3]
+        abr[:,1] = np.sqrt(models[:,1]**2 + models[:,2]**2)
+        abr[:,2] = np.sqrt(models[:,3]**2 + models[:,4]**2)
+        abr[:,0] = models[:,0]
+        abr[:,3] = models[:,5]
+        print(np.median(abr[:,1]), np.max(abr[:,1]))
+        params = ['T [Gyr]', 'B [pc]', 'V [km s$^{-1}$]', 'log M/M$_\odot$']
+        
+        if Npar>6:
+            abr[:,3] = models[:,6]
+            abr[:,4] = models[:,5]
+            params = ['T [Gyr]', 'B [pc]', 'V [km s$^{-1}$]', '$r_s$ [pc]', 'log M/M$_\odot$']
+            lims = [[0.,2], [0.1,75], [10,500], [0.001,40], [5,9]]
+            lims = [[0.,4.5], [0,145], [0,700], [0,99], [4.5,9]]
+            lims = [[0.,2.5], [0,65], [0,550], [0,35], [5,8.5]]
+            logscale = [False, True, True, True, False]
+            logscale = [False, False, False, False, False]
+        else:
+            lims = [[0.,2], [0.1,100], [10,1000], [5,9]]
+            logscale = [False, True, True, False]
+        models_all = abr
+    
+    # rv selected models
+    label = 'v500w200'
+    N = 99856
+    t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
+    
+    np.random.seed(4385)
+    #indices = np.linspace(0, Ntot-1, Ntot, dtype=int)
+    ind_lk = np.random.permutation(ind)
+    ind_vr = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
+    
+    t_ = t[ind_lk]
+    models_allvr = np.array([t_['Timpact'], np.sqrt(t_['bx']**2 + t_['by']**2), np.sqrt(t_['vxsub']**2 + t_['vysub']**2), t_['rs'], t_['M']]).T
+    
+    t = t[ind_lk & ind_vr]
+
+    models_vr = np.array([t['Timpact'], np.sqrt(t['bx']**2 + t['by']**2), np.sqrt(t['vxsub']**2 + t['vysub']**2), t['rs'], t['M']]).T
+    
+    
+    
+    Nvar = np.shape(models_all)[1]
+    dax = 2
+    
+    hull_ids = np.empty(0, dtype=int)
+    panel_id = np.empty((0,2), dtype=int)
+    vertices = np.empty((0,2))
+    colors = ['0.9', '0.8', '0.7']
+    ecolors = ['0.8', '0.7', '0.6']
+    labels = ['Morphology', 'Morphology + Radial velocity (all)', 'Morphology + Radial velocity (comoving)']
+    labels = ['Morphology', 'Morphology + Radial velocity']
+    opatch = []
+
+    plt.close()
+    fig, ax = plt.subplots(Nvar-1, Nvar-1, figsize=(dax*Nvar, dax*Nvar), sharex='col', sharey='row' ,squeeze=False)
+    
+    for i in range(0,Nvar-1):
+        for j in range(i+1,Nvar):
+            plt.sca(ax[j-1][i])
+            
+            for k, models in enumerate([models_all, models_vr]):
+                points = np.log10(np.array([models[:,i], models[:,j]]).T)
+                hull = scipy.spatial.ConvexHull(points)
+                
+                xy_vert = 10**np.array([points[hull.vertices,0], points[hull.vertices,1]]).T
+                vertices = np.concatenate([vertices, xy_vert])
+                hull_ids = np.concatenate([hull_ids, hull.vertices])
+                
+                current_id = np.tile(np.array([i,j]), len(hull.vertices)).reshape(-1,2)
+                panel_id = np.concatenate([panel_id, current_id])
+                
+                p = mpl.patches.Polygon(xy_vert, closed=True, lw=2, ec=ecolors[k], fc=colors[k], zorder=0, alpha=0.7, label=labels[k])
+                plt.gca().add_artist(p)
+                
+                if (i==0) & (j==1):
+                    opatch += [p]
+            
+            #for simplex in hull.simplices:
+                #plt.plot(points[simplex, 0], points[simplex, 1], 'k-')
+    
+    #hull_ids = np.unique(hull_ids)
+    #print(np.size(hull_ids))
+    np.savez('../data/hull_points{}'.format(label), all=hull_ids, unique=np.unique(hull_ids), panel=panel_id, vertices=vertices)
+    
+    t_impact = 0.495*u.Gyr
+    M = 5e6*u.Msun
+    #rs = 0.1*rs_diemer(M)
+    rs = 10*u.pc
+    bnorm = 15*u.pc
+    vnorm = 250*u.km/u.s
+    
+    pfid = [t_impact.to(u.Gyr).value, bnorm.to(u.pc).value, vnorm.to(u.km/u.s).value, (rs.to(u.pc).value), np.log10(M.to(u.Msun).value)]
+    
+    for i in range(Nvar-1):
+        for j in range(i+1, Nvar):
+            #ind = i + (j-1)*Nvar + Nvar
+            plt.sca(ax[j-1][i])
+            ofid = plt.plot(pfid[i], pfid[j], '*', ms=20, mec='orangered', mew=1.5, color='orange', label='Fiducial (morphology)')
+            
+            if (i==0) & (j==1):
+                opatch += [ofid[0]]
+    
+    for i in range(0,Nvar-1):
+        for j in range(i+1,Nvar-1):
+            plt.sca(ax[i][j])
+            plt.axis('off')
+    
+    for k in range(Nvar-1):
+        plt.sca(ax[-1][k])
+        plt.xlabel(params[k])
+
+        if full==False:
+            if logscale[k]:
+                plt.gca().set_xscale('log')
+            plt.xlim(lims[k])
+        
+        plt.sca(ax[k][0])
+        plt.ylabel(params[k+1])
+        if (full==False):
+            if logscale[k+1]:
+                plt.gca().set_yscale('log')
+            plt.ylim(lims[k+1])
+    
+    plt.sca(ax[0][0])
+    plt.legend(handles=opatch, bbox_to_anchor=(4.5,1), loc=1)
+    
+    # add sgr globular clusters to mass/size
+    tgc = Table.read('../../gd1_spur/data/baumgardt_structure.txt', format='ascii', delimiter=' ', data_start=2)
+    sgr_gc = ['NGC 6715', 'Ter 7', 'Ter 8', 'Arp 2', 'Pal 12', 'Whiting 1', 'NGC 2419', 'NGC 5824']
+    #sgr_gc = ['NGC 6715', 'NGC 2419', 'NGC 5824']
+    ind_sgr = np.isin(tgc['Cluster'], sgr_gc)
+    tgc = tgc[ind_sgr]
+    #ind_far = tgc['R_GC']>10
+    #tgc = tgc[ind_far]
+    print(len(tgc))
+    
+    #gc_mass = np.array([float(tgc['mass'][x][1:5])*10**float(tgc['mass'][x][-2:-1]) for x in range(len(tgc))])
+    gc_mass = np.log10(tgc['Mass'])
+    print(np.array(tgc['Cluster']))
+    print(np.array(gc_mass))
+    print(np.array(tgc['rhm']))
+    
+    plt.sca(ax[3][3])
+    plt.plot(tgc['rhl'], gc_mass, '^', ms=8)
+
+    plt.tight_layout(h_pad=0, w_pad=0)
+    plt.savefig('../plots/corner.png')
+    #plt.savefig('../paper/corner.pdf')
+
+def orbit_cross(new=True, sgr=True, massive=True):
+    """Check if satellites crossed GD-1"""
+    
+    # potential
+    ham = gp.Hamiltonian(gp.MilkyWayPotential(nucleus=dict(m=0), halo=dict(c=0.95, m=7E11), bulge=dict(m=4E9), disk=dict(m=5.5e10)))
+    gc_frame = coord.Galactocentric(galcen_distance=8*u.kpc, z_sun=0*u.pc)
+    
+    # orbital solution
+    if new:
+        pin = np.load('../data/new_orbit.npy')
+        phi1, phi2, d, pm1, pm2, vr = pin
+    else:
+        pos = np.load('/home/ana/projects/legacy/GD1-DR2/data/gd1_orbit.npy')
+        phi1, phi2, d, pm1, pm2, vr = pos
+    
+    c = gc.GD1(phi1=phi1*u.deg, phi2=phi2*u.deg, distance=d*u.kpc, 
+            pm_phi1_cosphi2=pm1*u.mas/u.yr,
+            pm_phi2=pm2*u.mas/u.yr,
+            radial_velocity=vr*u.km/u.s)
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    
+    dt = 0.5 * u.Myr
+    n_steps = 250
+    fit_orbit = ham.integrate_orbit(w0, dt=dt, n_steps=120)
+
+    # find gap 6D location at present
+    gap_phi0 = -40*u.deg
+    model_gd1 = fit_orbit.to_coord_frame(gc.GD1, galactocentric_frame=gc_frame)
+    gap_i = np.abs(model_gd1.phi1.wrap_at(180*u.deg) - gap_phi0).argmin()
+    gap_w0 = fit_orbit[gap_i]
+    
+    # gap orbit
+    t1 = 0*u.Myr
+    t2 = -2*u.Gyr
+    dt = -0.5
+    t = np.arange(t1.to(u.Myr).value, t2.to(u.Myr).value+dt, dt)
+    gap_orbit = ham.integrate_orbit(gap_w0, dt=dt, t1=t1, t2=t2)
+    
+    # plot relative distances as a function of time
+    plt.close()
+    plt.figure(figsize=(7,4.5))
+    
+    # 3, 0.5
+    lw = 0.9
+    alpha = 0.8
+    t = -t
+
+    # show classicals
+    tcls = Table.read('../../gd1_spur/data/positions_classical.fits')
+    ra, dec, d, pmra, pmdec, vr = tcls['ra'], tcls['dec'], tcls['distance'], tcls['pmra'], tcls['pmdec'], tcls['vr']
+    cs = coord.ICRS(ra=ra, dec=dec, distance=d, pm_ra_cosdec=pmra, pm_dec=pmdec, radial_velocity=vr)
+    ws = gd.PhaseSpacePosition(cs.transform_to(gc_frame).cartesian)
+    satellite_orbit = ham.integrate_orbit(ws, dt=dt, t1=t1, t2=t2)
+    for e in range(len(tcls)):
+        if e==0:
+            label = 'Classical\ndwarfs'
+        else:
+            label = ''
+        rel_distance = np.linalg.norm(gap_orbit.xyz - satellite_orbit.xyz[:,:,e], axis=0)*gap_orbit.xyz[0].unit
+        plt.plot(t, rel_distance.to(u.pc), '-', color=mpl.cm.Reds(0.9), alpha=alpha, label=label, lw=lw)
+    
+    # show ultrafaints
+    tufd = Table.read('../../gd1_spur/data/positions_ufd.fits')
+    ra, dec, d, pmra, pmdec, vr = tufd['ra'], tufd['dec'], tufd['distance'], tufd['pmra'], tufd['pmdec'], tufd['vr']
+    cs = coord.ICRS(ra=ra, dec=dec, distance=d, pm_ra_cosdec=pmra, pm_dec=pmdec, radial_velocity=vr)
+    ws = gd.PhaseSpacePosition(cs.transform_to(gc_frame).cartesian)
+    satellite_orbit = ham.integrate_orbit(ws, dt=dt, t1=t1, t2=t2)
+    for e in range(len(tufd)):
+        if e==0:
+            label = 'Ultra-faint\ndwarfs'
+        else:
+            label = ''
+        rel_distance = np.linalg.norm(gap_orbit.xyz - satellite_orbit.xyz[:,:,e], axis=0)*gap_orbit.xyz[0].unit
+        plt.plot(t, rel_distance.to(u.pc), '-', color=mpl.cm.Reds(0.7), alpha=alpha, label=label, lw=lw)
+    
+    # show globulars
+    tgc = Table.read('../../gd1_spur/data/positions_globular_baumgardt.fits')
+    tgc_ = Table.read('../../gd1_spur/data/baumgardt_structure.txt', format='ascii', delimiter=' ', data_start=2)
+    if sgr:
+        sgr_gc = ['NGC 6715', 'Ter 7', 'Ter 8', 'Arp 2', 'Pal 12', 'Whiting 1', 'NGC 2419', 'NGC 5824']
+        ind_sgr = np.isin(tgc_['Cluster'], sgr_gc)
+        tgc = tgc[ind_sgr]
+    elif massive:
+        ind_mass = (tgc_['Mass']>2e5) #& (tgc_['Mass']<3e5)
+        tgc = tgc[ind_mass]
+    
+    ra, dec, d, pmra, pmdec, vr = tgc['ra'], tgc['dec'], tgc['distance'], tgc['pmra'], tgc['pmdec'], tgc['vr']
+    cs = coord.ICRS(ra=ra, dec=dec, distance=d, pm_ra_cosdec=pmra, pm_dec=pmdec, radial_velocity=vr)
+    ws = gd.PhaseSpacePosition(cs.transform_to(gc_frame).cartesian)
+    satellite_orbit = ham.integrate_orbit(ws, dt=dt, t1=t1, t2=t2)
+    for e in range(len(tgc)):
+        if e==0:
+            label = 'Globular\nclusters'
+        else:
+            label = ''
+        rel_distance = np.linalg.norm(gap_orbit.xyz - satellite_orbit.xyz[:,:,e], axis=0)*gap_orbit.xyz[0].unit
+        plt.plot(t, rel_distance.to(u.pc), '-', color=mpl.cm.Reds(0.5), alpha=alpha, label=label, lw=lw)
+
+        if np.min(rel_distance)<2*u.kpc:
+            print(tgc['name'][e], tgc_['Mass'][e], tgc_['rhm'][e], np.min(rel_distance))
+
+    plt.plot(t, np.abs(gap_orbit.xyz[2]).to(u.pc), '-', color=mpl.cm.Reds(0.3), alpha=alpha, label='Disk', lw=lw, zorder=0)
+    #plt.plot(t, np.sqrt(gap_orbit.xyz[0]**2 + gap_orbit.xyz[1]**2), 'r-', alpha=0.2)
+
+    txt = plt.text(5, 60, 'Maximum permitted impact parameter', va='bottom', ha='right', fontsize='small')
+    txt.set_bbox(dict(facecolor='w', alpha=0.8, ec='none'))
+    plt.axhline(57, ls='-', color='k', alpha=0.8, lw=1.5, zorder=10)
+    
+    plt.ylim(30,200000)
+    plt.gca().set_yscale('log')
+    plt.gca().invert_xaxis()
+    
+    #plt.legend(loc=2, fontsize='small', markerscale=2, handlelength=1)
+    plt.xlabel('Lookback time [Myr]')
+    plt.ylabel('Relative distance [pc]')
+    
+    plt.tight_layout()
+    plt.savefig('../plots/relative_distance_new{:1d}_sgr{:1d}_massive{:1d}.png'.format(new, sgr, massive))
 
