@@ -313,14 +313,15 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     
     plt.sca(ax[2])
     isort_clr = np.argsort(clr)[::-1]
-    im = plt.scatter(ceq.ra.wrap_at(wangle).radian[isort_clr], ceq.dec.radian[isort_clr], rasterized=True, c=clr[isort_clr], zorder=0, s=2, ec='none', cmap=cmap, vmin=vmin, vmax=vmax, label=label)
-    plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'o', color='0.2', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius dark matter\nDierickx & Loeb (2017)')
+    im = plt.scatter(ceq.ra.wrap_at(wangle).radian[isort_clr], ceq.dec.radian[isort_clr], rasterized=True, c=clr[isort_clr], zorder=0, s=2, ec='none', cmap=cmap, vmin=vmin, vmax=vmax, label='')
+    plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'o', color='0.2', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius dark matter\n(Dierickx & Loeb 2017)')
     
+    plt.legend(loc=4, fontsize='x-small', markerscale=2, handlelength=0.5)
     plt.xticks(fontsize=font_tick)
     plt.yticks(fontsize=font_tick)
     plt.xlabel('R.A. [deg]', fontsize='small')
     plt.ylabel('Dec [deg]', fontsize='small')
-    plt.title('Objects producing a comoving GD-1 spur', fontsize=17, pad=15)
+    plt.title('Objects producing a comoving GD-1 spur + Sagittarius', fontsize=17, pad=15)
     
     
     plt.tight_layout()
