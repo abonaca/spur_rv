@@ -67,7 +67,7 @@ A flyby of a massive, compact object can pull stars out of a stellar stream and 
 In this scenario, radial velocity of the spur relative to the stream constrains the orbit of the perturber and its present-day location.
 For GD-1, the family of acceptable perturber orbits overlaps the stellar and dark-matter debris of the Sagittarius dwarf galaxy in present-day position and velocity.
 % Constrained by small velocity offsets, the family of acceptable perturber orbits overlaps the stellar and dark-matter debris of the Sagittarius dwarf galaxy in present-day position and velocity.
-This indicates that GD-1 may have been perturbed by a low-mass dark-matter subhalo, or another compact halo object, formerly associated with Sagittarius.
+This indicates that GD-1 may have been perturbed by a globular cluster or an extremely compact dark-matter subhalo formerly associated with Sagittarius.
 \end{abstract}
 
 \keywords{%
@@ -81,7 +81,37 @@ Galaxy:~kinematics~and~dynamics
 \section{Introduction}
 \label{sec:intro}
 
-% The spread in proper motions indicates GD-1 has a low velocity dispersion \citep[$\lesssim1.5\,\kms$,][]{malhan2019}, .
+The preeminent cosmological model predicts that galaxies like the Milky Way contain a myriad of non-luminous clumps of dark matter \citep[e.g.,][]{diemand2008, springel2008}.
+Masses of these dark-matter subhalos are $\gtrsim4$ orders of magnitude lower than the total mass of the Milky Way, so they are expected to have a negligible effect on most stars in the Galaxy \citep[e.g.,][]{hopkins2008, donghia2010}.
+However, even low-mass subhalos would leave evidence of interaction with stellar streams, the tidal debris of luminous satellites.
+Numerical experiments have shown that subhalo encounters can heat up streams \citep[e.g.,][]{johnston2002, ibata2002}, produce gaps in their density profiles \citep[e.g.,][]{sgv2008,yoon2011}, and cause stream folds \citep[e.g.,][]{carlberg2009}.
+
+Until recently, observations of stellar streams in the Milky Way were insufficient to allow robust searches for signatures of dark-matter subhalos \citep[cf.][]{carlberg2012, ibata2016}.
+Now, proper motions from the \gaia\ mission \citep{gdr2} have revolutionized our ability to discover \citep[e.g.,][]{malhan2018,meingast2019} and characterize stellar streams \citep[e.g.,][]{bonaca2019b,shipp2019}.
+Using \gaia\ data, \citet{pwb} studied a nearby, retrograde stellar stream GD-1 \citep{grillmair2006}, produced the cleanest map of a stream in the Milky Way and confidently identified several underdensities, as well as stars outside of the main stream \citep[see also][]{malhan2019b, deboer2019}.
+\citet{bonaca2019a} created dynamical models of GD-1 which, following an encounter with a massive object, form a stream gap and an adjacent spur of stars that  quantitatively match the observed features.
+With no known luminous object having approached GD-1 sufficiently close, there is a possibility that GD-1 was perturbed by a dark-matter subhalo.
+
+\begin{figure*}
+\begin{center}
+\includegraphics[width=0.99\textwidth]{members.pdf}
+\end{center}
+\caption{We defined membership to the GD-1 stream with four selection criteria: (1) proper motion box \citep[from][not shown]{pwb}, (2) isochrone box (left), (3) small radial velocity offset from the GD-1 orbit (center), (4) low metallicity (right).
+Starting with the proper motion selection, panels from left to right add selections marked with pink dashed lines and decrease membership to the number in the top right of the panel.
+In each panel, the members and non-members are shown in dark and light blue, respectively.
+Our final sample has 47 high-probability GD-1 members.
+}
+\label{fig:members}
+\end{figure*}
+
+Precise kinematic data are required to test whether the spur-and-gap feature in GD-1 was indeed formed in an interaction with a massive, dark object \citep{bonaca2019a}.
+In Section~\ref{sec:spec} we present the high-resolution spectroscopy from MMT/Hectochelle, which we used to define a sample of highly probable GD-1 members (\S\ref{sec:membership}).
+These data show that the spur is kinematically aligned with the GD-1 stream (\S\ref{sec:kinematics}).
+The small relative velocity between the stream and the spur can be explained within the impact scenario, but only if a perturber is on a specific set of orbits (\S\ref{sec:discussion}), which improves prospects of locating dark objects within the Milky Way purely from their interactions with stellar streams.
+% We conclude with a discussion of our prospects for discovering and locating dark objects within the Milky Way from their interactions with stellar streams.
+% This finding improves our prospects of discovering dark objects within the Milky Way from their interactions with stellar streams.
+
+
 
 
 \section{Spectroscopy}
@@ -113,18 +143,6 @@ We then used the \package{MINESweeper} code \citep{cargile2019} to forward-model
 Radial velocities are measured to better than $\lesssim1\,\kms$ (median $\sigma_{V_r}=0.3\,\kms$), while typical uncertainties for [Fe/H] and [$\alpha$/Fe] are $0.07$\,dex and $0.05$\,dex, respectively.
 Despite the sub-$\kms$ statistical precision, sky-emission lines show variations of $\approx1\,\kms$ across the two camera chips and between different exposures.
 Our overall kinematic precision is therefore systematics-dominated at $\approx1\,\kms$, comparable to that typically achieved with Hectochelle \citep[e.g.,][]{caldwell2017}, and sufficient to resolve the GD-1 internal dispersion \citep{malhan2019}.
-
-\begin{figure*}
-\begin{center}
-\includegraphics[width=0.99\textwidth]{members.pdf}
-\end{center}
-\caption{We defined membership to the GD-1 stream with four selection criteria: (1) proper motion box \citep[from][not shown]{pwb}, (2) isochrone box (left), (3) small radial velocity offset from the GD-1 orbit (center), (4) low metallicity (right).
-Starting with the proper motion selection, panels from left to right add selections marked with pink dashed lines and decrease membership to the number in the top right of the panel.
-In each panel, the members and non-members are shown in dark and light blue, respectively.
-Our final sample has 47 high-probability GD-1 members.
-}
-\label{fig:members}
-\end{figure*}
 
 \section{Stream membership}
 \label{sec:membership}
@@ -202,8 +220,8 @@ To a high degree, the GD-1 spur is comoving with the stream, which puts strong c
 \begin{center}
 \includegraphics[width=0.99\columnwidth]{skybox.pdf}
 \end{center}
-\caption{Present-day sky positions of objects that induce a spur-and-gap morphology after a close encounter with the GD-1 stream, color-coded by the relative radial velocity between the stream and the spur at $\phi_1=-33.7^\circ$ (top).
-Solutions that satisfy the measured radial velocity offset, $|\Delta V_r|<1\kms$, are approximately on a great circle (middle), coincident with the distribution of dark matter expected from the disruption of the Sagittarius dwarf galaxy (gray points, bottom).
+\caption{Present-day sky positions of objects that induce a spur-and-gap morphology after a close encounter with the GD-1 stream, color-coded by the relative radial velocity between the stream and the spur at $\phi_1=-33.7^\circ$ (top, from \citealt{bonaca2019a}).
+Solutions that satisfy the measured radial velocity offset, $|\Delta V_r|<1\kms$, are approximately on a great circle (middle), coincident with the distribution of dark matter expected from the disruption of the Sagittarius dwarf galaxy (gray points, bottom, from \citealt{dl2017}).
 }
 \label{fig:skybox}
 \end{figure}
@@ -214,28 +232,49 @@ Serendipitously, these data update the GD-1's orbit (\S\,\ref{sec:kinematics}), 
 The relative radial velocity between the stream and the spur is small, $\Delta V_r\lesssim1\,\kms$, which, combined with their similar metallicity, $\feh\approx-2.2$, suggests that the spur is a part of GD-1 that has been perturbed from an original orbit along the stream.
 We conclude with a discussion of implications that a comoving spur places on its formation mechanism and an outlook for dynamical inferences about the structure of the Milky Way if features like the GD-1 spur are common in other streams.
 
-
-% - improvements:
-% -- velocities: only 2 overlapping fields, would be great to have more, more stars in general, though hard because so faint
-% -- velocities: very cold, worth doing stream-wide kinematic survey
-
 % - implications for origin
 % - proposed scenarios (or do it in the intro?)
-- implications for encounter scenario:
-- rules out many young events, leaves old
+% - implications for encounter scenario:
+% - rules out many young events, leaves old
 % - something from actions
 % - energy spread large, need more precise pm, gaia dr3, hst program to nail down
 
-- sky predictions
-- sgr association
-- encounter rates need to be reevaluated if associated w sgr (before assumed isotropic)
-- mention sgr supposed to have an impact from de boer (+ alternative spur geometry)
-- perhaps can explain other gd-1 features
--- comment on disk impact, other encounters
+\citet{bonaca2019a} showed that a stream can develop the spur-and-gap morphology similar to that observed in GD-1 following an encounter with a massive object, and predicted that properties of the encounter can be further constrained with kinematic data.
+We next revisit perturbed models of GD-1 from \citet{bonaca2019a} and explore implications of the observed GD-1 kinematics in the context of an encounter scenario.
+A spur comoving with the stream prefers models of a closer encounter with a less massive and more compact object than inferred from the stream morphology alone, while the range of allowed impact times and the perturber's total velocity remain similar.
+The most substantial improvement that the kinematic data provide is in constraining the perturber's orbit, which determines its present-day location.
+In the top of Figure~\ref{fig:skybox} we show the present-day sky positions of perturber models allowed by stream morphology, color-coded by the relative stream--spur radial velocity, $\Delta V_r(\phi_1=-33.7^\circ)$.
+Morphology alone allows for a perturber on a variety of orbits, however, models satisfying the observed relative velocity $|\Delta V_r|<1\,\kms$ are spatially constrained (Figure~\ref{fig:skybox}, middle).
 
-- given the number of peculiarities observed \citep{pwb, jhelum, pal5}, this motivates comprehensive spectroscopic surveys of streams at a high resolution
-- new opportunity for directly predicting where the perturber is now (say in the abstract too?)
+After implementing the radial velocity constraint, the allowed locations of the GD-1's perturber are still not entirely localized on the sky, but instead distributed approximately along a great circle.
+In general, interaction models predict a radial velocity gradient along the spur \citep{bonaca2019a}, which should tighten the orbital constraints.
+Radial velocities we measured in the GD-1 spur show a tentative gradient between $\phi_1=-35^\circ$ and $-31^\circ$ (Figure~\ref{fig:vr}, bottom), however, higher precision is required to resolve the gradient.
+The color-coding in the middle panel of Figure~\ref{fig:skybox} maps to the relative proper motion between the GD-1 stream and its spur, indicating that precise transverse velocities from future \gaia\ data releases or targeted astrometric followup will further limit the perturber's location.
+
+% Despite the poor localization, current constraints on the GD-1's perturber are already informative of its origin.
+Interestingly, currently allowed positions of the GD-1 perturber spatially overlap with the expected distribution of dark matter stripped from the Sagittarius dwarf galaxy (gray points in the bottom of Figure~\ref{fig:skybox}, from \citealt{dl2017}).
+A subset of GD-1 solutions between $\rm R.A.=180^\circ$ and $300^\circ$ further coincide with the expected distances and radial velocities of the Sagittarius debris.
+This overlap of the 4-dimensional position and velocity distributions suggests that the GD-1 stream might have been perturbed by an object originally associated with Sagittarius.
+The Sagittarius dwarf is itself too massive to produce the spur-and-gap morphology, but a compact, low-mass object associated with Sagittarius, like a globular cluster or a dark-matter subhalo, is a plausible culprit.
+- if the perturber is associated w sgr, encounter rates need to be reevaluated (before assumed isotropic)
+- the structural properties derived similar to gc, but none of the known gcs comes closer than 1kpc in the past 2 Gyr, even with the updated orbit
+- should search to test this hypothesis, possible the census incomplete
+% (in particular for sgr, expected emosaics, associated massari)
+- if luminous object not found, a dark matter subhalo still possible, although more in line w sidm?
+
+% There are uncertainties associated both with modeling of the Sagittarius debris (e.g., simulated proper motions disagree with the observations) and inference on the GD-1's perturber (e.g., the parameter space of the encounter might be more complex than currently mapped) which make their association tentative at the present, and there remain sufficient support in the distribution of plausible GD-1 perturbers for one unassociated with Sagittarius.
+% - more generally, if encounter, and associated w sgr, encounter rates need to be reevaluated (before assumed isotropic)
+
+% - mention sgr supposed to have an impact from de boer (+ alternative spur geometry)
+% - perhaps can explain other gd-1 features
+- other explanations of the complex morphology (de boer, kshir, progenitor there)
+- here are the data that need to be satisfied
+- if predictions we can refer to, do
+
+- the number of peculiarities observed \citep{pwb, bonaca2019b, bonaca2020} motivates comprehensive spectroscopic surveys of streams at a high resolution, such as the ongoing S5, but designed to provide even more precise radial velocities.
+- new opportunity for directly predicting where the perturber is now
 - would enable direct follow up
+- difference in saying statistical properties of perturbers than observing them individually
 - not just statistical search any more, but in the domain of multimessenger astronomy
 
 
