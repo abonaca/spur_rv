@@ -6,6 +6,9 @@ steelblue = '#a2b3d2'
 navyblue = '#294882'
 fuchsia = '#ff3643'
 
+#########
+# Figures
+
 def plot_membership():
     """Plot likely members and their selection in the CMD, radial velocity and chemical space"""
     
@@ -349,4 +352,54 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     
     #plt.savefig('../paper/skybox.png')
     plt.savefig('../paper/skybox.pdf')
+
+
+##########
+# For text
+
+def spectra():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    print(np.sum(-t['lnL'] < 2.5E3+t['SNR']**2.4), np.sum(t['SNR']>3), np.sum(np.isfinite(t['aFe'])))
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3) & np.isfinite(t['aFe'])
+    t = t[ind]
+    print('{:d} good spectra'.format(len(t)))
+    
+    for k in ['Vrad', 'FeH', 'aFe']:
+        print(k, np.median(t['std_{:s}'.format(k)]), np.percentile(t['std_{:s}'.format(k)], [90]))
+
+def members():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3) & np.isfinite(t['aFe'])
+    t = t[ind]
+
+    mem = get_members(t)
+    t = t[mem]
+    
+    print('chemistry')
+    for k in ['FeH', 'aFe']:
+        print(k, np.median(t['{:s}'.format(k)]), np.std(t['{:s}'.format(k)]))
+    
+    print('uncertainties')
+    for k in ['Vrad', 'FeH', 'aFe']:
+        print(k, np.median(t['std_{:s}'.format(k)]), np.percentile(t['std_{:s}'.format(k)], [90]))
+
+def publish_catalog():
+    """Produce catalog with good spectra, membership columns"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3) & np.isfinite(t['aFe'])
+    t = t[ind]
+
+    mem_dict = get_members(t, full=True)
+    t['mem'] = mem_dict['mem']
+    t['cmdmem'] = mem_dict['cmdmem']
+    t['pmmem'] = mem_dict['pmmem']
+    t['vrmem'] = mem_dict['vrmem']
+    t['fehmem'] = mem_dict['fehmem']
+    
+    t.pprint()
+    t.write('../data/catalog.fits', overwrite=True)
+
 

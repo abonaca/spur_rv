@@ -67,12 +67,12 @@
 \affil{Center for Astrophysics | Harvard \& Smithsonian, 60 Garden Street, Cambridge, MA 02138, USA}
 
 \begin{abstract}\noindent % trust me
-The longest thin stellar stream in the Milky Way halo, GD-1, has an ensemble of features that may uncover past perturbation.
+The $100^\circ$-long thin stellar stream in the Milky Way halo, GD-1, has an ensemble of features that may uncover past perturbation.
 Using high-resolution MMT/Hectochelle spectroscopy we show that a spur of GD-1-like stars outside of the main stream are kinematically and chemically consistent with the main stream.
-In the spur, as in the main stream, GD-1 has a low intrinsic radial velocity dispersion, $\sigma_{V_r}\lesssim1.5\,\kms$, is metal-poor, $\feh\approx-2.1$, and has little intrinsic spread in the \feh\ and \afe\ abundances, which point to a common globular cluster progenitor.
+In the spur, as in the main stream, GD-1 has a low intrinsic radial velocity dispersion, $\sigma_{V_r}\lesssim1\,\kms$, is metal-poor, $\feh\approx-2.3$, and has little intrinsic spread in the \feh\ and \afe\ abundances, which point to a common globular cluster progenitor.
 At a fixed location along the stream, the median radial velocity offset between the spur and the main stream is smaller than $0.5\,\kms$, comparable to the measurement uncertainty.
 A flyby of a massive, compact object can pull stars out of a stellar stream and produce features like the spur observed in GD-1.
-In this scenario, radial velocity of the spur relative to the stream constrains the orbit of the perturber and its present-day location.
+In this scenario, the radial velocity of the spur relative to the stream constrains the orbit of the perturber and its present-day location.
 For GD-1, the family of acceptable perturber orbits overlaps the stellar and dark-matter debris of the Sagittarius dwarf galaxy in present-day position and velocity.
 This indicates that GD-1 may have been perturbed by a globular cluster or an extremely compact dark-matter subhalo formerly associated with Sagittarius.
 \end{abstract}
@@ -127,15 +127,16 @@ Using the Gaia--PanSTARRS-1 cross-matched catalog, we selected retrograde stars 
 On average, we dedicated $\gtrsim170$ fibers to science targets per field, for a total of 1409 science spectra.
 Up to 40 of the remaining fibers were used to estimate the sky emission.
 We used the \texttt{RV31} filter covering the Mg~b triplet and observed each field for 2.25~hours (except for field 3 which was observed for 2~hours due to scheduling constraints).
-With $3\times2$ spectral and spatial binning of the CCD pixels, we achieved a signal-to-noise ratio $S/N\approx2$ at $g=20$ and an effective resolution $R\approx32,000$.
-% - $S/N>3$ cut for analysis.
+With $2\times3$ spectral and spatial binning of the CCD pixels, we achieved a signal-to-noise ratio $S/N\approx2$ at $g=20$ and an effective resolution $R\approx32,000$.
 
 The 2D spectra were reduced by \package{HSRED}~v2.1\footnote{\url{https://bitbucket.org/saotdc/hsred/}}.
 This pipeline flat-fields, wavelength-calibrates with respect to ThAr lamp spectra, extracts 1D spectra and subtracts the sky emission.
 We then used the \package{MINESweeper} code \citep{cargile2019} to forward-model the processed 1D spectra and infer stellar parameters, including radial velocities, [Fe/H] and [$\alpha$/Fe] abundances.
-Radial velocities are measured to better than $\lesssim1\,\kms$ (median $\sigma_{V_r}=0.3\,\kms$), while typical uncertainties for [Fe/H] and [$\alpha$/Fe] are $0.07$\,dex and $0.05$\,dex, respectively.
-Despite the sub-$\kms$ statistical precision, sky-emission lines show variations of $\approx1\,\kms$ across the two camera chips and between different exposures.
-Our overall kinematic precision is therefore systematics-dominated at $\approx1\,\kms$, comparable to that typically achieved with Hectochelle \citep[e.g.,][]{caldwell2017}, and sufficient to resolve the GD-1 internal dispersion \citep{malhan2019}.
+For the analysis we retained 1160 well-fit spectra with $S/N\geq3$.
+Radial velocities are measured to better than $\lesssim1\,\kms$ (median $\sigma_{V_r}=0.2\,\kms$), while typical uncertainties for [Fe/H] and [$\alpha$/Fe] are $0.06$\,dex and $0.04$\,dex, respectively.
+Despite the sub-$\kms$ statistical precision, sky-emission lines can show variations of up to $\approx1\,\kms$ across the two camera chips and between different exposures.
+Our overall kinematic precision is therefore systematics-dominated at $\approx1\,\kms$, comparable to that typically achieved with Hectochelle \citep[e.g.,][]{caldwell2017}.
+% , and sufficient to resolve the GD-1 internal dispersion \citep{malhan2019}.
 
 \section{Stream membership}
 \label{sec:membership}
@@ -144,24 +145,24 @@ Since GD-1 is a retrograde, metal-poor stream, membership selection based on \ga
 The left panel of Figure~\ref{fig:members} shows the color-magnitude diagram (CMD) of all targeted stars: those with GD-1-like proper motions are dark blue ($-9<\mu_{\phi_1}/\masyr<-4.5$ and $-1.7<\mu_{\phi_2}/\masyr<1$, corrected for solar reflex motion following \citealt{pwb}), and the filler retrograde stars are light blue.
 We further consider stars close to the $\textrm{[Fe/H]}=-1.5$, 12.6\,Gyr isochrone at 7.8\,kpc \citep{choi2016} as more likely GD-1 members.
 The isochrone selection box (dashed pink) is tighter around the GD-1's main sequence where the contrast with respect to the Milky Way field is higher, and more generous at the red giant branch, allowing for uncertainties in the adopted isochrone.
-A total of 82 stars satisfy the proper motion and CMD selection criteria.
+Across the eight observed fields, a total of 82 stars satisfy the proper motion and CMD selection criteria.
 
 Most of these likely members have small radial velocity offsets from the GD-1's orbit (Figure~\ref{fig:members}, middle panel).
 We used the orbital solution from \citet{pwb}, which is $\Delta V_r\approx10\,\kms$ offset from Hectochelle radial velocities, so we further select 50 more likely members with velocity offsets $|\Delta V_r| < 7\,\kms$.
 Stars from both the main stream and the spur satisfy these criteria, indicating that the spur is dynamically associated with GD-1.
 We explore this connection in more detail in Section~\ref{sec:kinematics}.
-% 
-Thus selected GD-1 members are predominantly metal-poor, as found by \citet{malhan2019}, so we adopt $-2.8<\feh<1.9$ as our final criterion for GD-1 membership (Figure~\ref{fig:members}, right).
+Thus selected GD-1 members are predominantly metal-poor (median $\feh=-2.32\pm0.17$), as found by \citet{malhan2019}, so we adopt $-2.8<\feh<1.9$ as our final criterion for GD-1 membership (Figure~\ref{fig:members}, right).
 Although wide, this metallicity selection removes only two kinematically identified members for a final sample of 47 most likely GD-1 stars.
 -- membership binary here: probabilistically way to go in the future
 - whole spec sample available on zenodo w separate flags
 
-In addition to determining membership, chemical abundances of stream stars are the best way to differentiate between a globular cluster and a dwarf galaxy origin in the absence of a progenitor.
-Abundance spreads are typically a signature of a dwarf galaxy origin \citep[e.g.,][]{willman2012}, however, globular clusters observed with the same instrumental setup as used here (although at a higher signal-to-noise ratio) show spreads on the order of $\approx0.05-0.1$\,dex \citep{cargile2019}.
-The standard deviations in $\feh$ and $\afe$ of GD-1 members are 0.17\,dex and 0.16\,dex, respectively, and are almost entirely accounted for by the measurement uncertainties (median $\sigma_\feh=0.16$\,dex, $\sigma_\afe=0.14$\,dex, larger than our typical target since most of the members are faint main-sequence stars).
+In the absence of a progenitor, chemical abundances of stream stars are the best way to differentiate between a globular cluster and a dwarf galaxy origin.
+% In addition to determining membership, chemical abundances of stream stars are the best way to differentiate between a globular cluster and a dwarf galaxy origin in the absence of a progenitor.
+% Abundance spreads are typically a signature of a dwarf galaxy origin \citep[e.g.,][]{willman2012}, however, globular clusters observed with the same instrumental setup as used here (although at a higher signal-to-noise ratio) show spreads on the order of $\approx0.05-0.1$\,dex \citep{cargile2019}.
+Abundance spreads are typically a signature of a dwarf galaxy origin \citep[e.g.,][]{willman2012}, however, globular clusters observed with the same instrumental setup as used here show abundance spreads comparable to the measurement uncertainty \citep[$\approx0.05-0.1$\,dex,][]{cargile2019}.
+The standard deviations in $\feh$ and $\afe$ of GD-1 members are 0.17\,dex and 0.16\,dex, respectively, and are almost entirely accounted for by the measurement uncertainties (median $\sigma_\feh=0.16$\,dex, $\sigma_\afe=0.14$\,dex, larger than for our typical target since most of the members are faint main-sequence stars).
 These data suggest that GD-1 is likely a disrupted globular cluster, as previously inferred from its narrow width \citep[e.g.,][]{grillmair2006} and cold kinematics \citep[e.g.,][]{malhan2019}.
 More detailed abundances will enable an even more efficient membership selection, and a definitive classification of GD-1's progenitor.
--- chemistry: spread similar to gc, check w multipop (old)
 
 
 \section{GD-1 kinematics}
