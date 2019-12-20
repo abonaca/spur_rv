@@ -66,11 +66,6 @@
 \author{Ben Johnson}
 \affil{Center for Astrophysics | Harvard \& Smithsonian, 60 Garden Street, Cambridge, MA 02138, USA}
 
-
-% \author{collaborators}
-% % \affil{Center for Astrophysics | Harvard \& Smithsonian, 60 Garden Street, Cambridge, MA 02138, USA}
-
-
 \begin{abstract}\noindent % trust me
 The longest thin stellar stream in the Milky Way halo, GD-1, has an ensemble of features that may uncover past perturbation.
 Using high-resolution MMT/Hectochelle spectroscopy we show that a spur of GD-1-like stars outside of the main stream are kinematically and chemically consistent with the main stream.
@@ -79,7 +74,6 @@ At a fixed location along the stream, the median radial velocity offset between 
 A flyby of a massive, compact object can pull stars out of a stellar stream and produce features like the spur observed in GD-1.
 In this scenario, radial velocity of the spur relative to the stream constrains the orbit of the perturber and its present-day location.
 For GD-1, the family of acceptable perturber orbits overlaps the stellar and dark-matter debris of the Sagittarius dwarf galaxy in present-day position and velocity.
-% Constrained by small velocity offsets, the family of acceptable perturber orbits overlaps the stellar and dark-matter debris of the Sagittarius dwarf galaxy in present-day position and velocity.
 This indicates that GD-1 may have been perturbed by a globular cluster or an extremely compact dark-matter subhalo formerly associated with Sagittarius.
 \end{abstract}
 
@@ -122,23 +116,10 @@ Until now, radial velocities have only been available in the main GD-1 stream \c
 In Section~\ref{sec:spec} we present the high-resolution spectroscopy from MMT/Hectochelle, which we used to define a sample of highly probable GD-1 members in the main stream and in the spur (\S\ref{sec:membership}).
 These data show that the spur is kinematically aligned with the GD-1 stream (\S\ref{sec:kinematics}).
 The small relative velocity between the stream and the spur can be explained within the impact scenario, but only if a perturber is on a specific set of orbits (\S\ref{sec:discussion}), which improves prospects of locating dark objects within the Milky Way purely from their interactions with stellar streams.
-% We conclude with a discussion of our prospects for discovering and locating dark objects within the Milky Way from their interactions with stellar streams.
-% This finding improves our prospects of discovering dark objects within the Milky Way from their interactions with stellar streams.
-
-
 
 
 \section{Spectroscopy}
 \label{sec:spec}
-
-% \begin{figure*}
-% \begin{center}
-% \includegraphics[width=0.9\textwidth]{spectra.pdf}
-% \end{center}
-% \caption{
-% }
-% \label{fig:spectra}
-% \end{figure*}
 
 We observed the GD-1 stellar stream using MMT/Hectochelle multi-object spectrograph \citep{szentgyorgyi2011}.
 Focusing on the perturbed area at $\phi_1\approx-40^\circ$ \citep[$\phi_{1,2}$ are coordinates oriented along and perpendicular to GD-1, respectively;][]{koposov2010}, we targeted 4 fields in the main stream, and 4 fields in the lower-density spur (labeled in Figure~\ref{fig:vr}, top).
@@ -148,12 +129,10 @@ Up to 40 of the remaining fibers were used to estimate the sky emission.
 We used the \texttt{RV31} filter covering the Mg~b triplet and observed each field for 2.25~hours (except for field 3 which was observed for 2~hours due to scheduling constraints).
 With $3\times2$ spectral and spatial binning of the CCD pixels, we achieved a signal-to-noise ratio $S/N\approx2$ at $g=20$ and an effective resolution $R\approx32,000$.
 % - $S/N>3$ cut for analysis.
-% Representative spectra in the 90th, 50th, and 10th percentile of $S/N$ are shown in rows 2 through 4 of Figure~\ref{fig:spectra}.
 
 The 2D spectra were reduced by \package{HSRED}~v2.1\footnote{\url{https://bitbucket.org/saotdc/hsred/}}.
 This pipeline flat-fields, wavelength-calibrates with respect to ThAr lamp spectra, extracts 1D spectra and subtracts the sky emission.
 We then used the \package{MINESweeper} code \citep{cargile2019} to forward-model the processed 1D spectra and infer stellar parameters, including radial velocities, [Fe/H] and [$\alpha$/Fe] abundances.
-% The best-fit solutions for the spectra in Figure~\ref{fig:spectra} are overplotted in orange, while the residuals are shown in gray at the bottom.
 Radial velocities are measured to better than $\lesssim1\,\kms$ (median $\sigma_{V_r}=0.3\,\kms$), while typical uncertainties for [Fe/H] and [$\alpha$/Fe] are $0.07$\,dex and $0.05$\,dex, respectively.
 Despite the sub-$\kms$ statistical precision, sky-emission lines show variations of $\approx1\,\kms$ across the two camera chips and between different exposures.
 Our overall kinematic precision is therefore systematics-dominated at $\approx1\,\kms$, comparable to that typically achieved with Hectochelle \citep[e.g.,][]{caldwell2017}, and sufficient to resolve the GD-1 internal dispersion \citep{malhan2019}.
@@ -206,7 +185,6 @@ The second panel shows radial velocity as a function of the $\phi_1$ stream coor
 Our data include the first radial velocity measurements in the GD-1 spur (dark orange), and they are consistent with radial velocities in the main GD-1 stream (light orange), further supporting the case for their common origin.
 Our measurements show a strong radial velocity gradient along the stream that is largely consistent with, but somewhat offset from the literature measurements (obtained at a lower-resolution).
 We next search for orbits that fit the updated sample of GD-1 radial velocities.
-% The phase space distribution of a stream constrains its orbit \citep[e.g.,][]{koposov2010}, so we next search for orbits that fit the updated sample of GD-1 radial velocities.
 
 We adopted the GD-1 orbit-fitting procedure from \citet{pwb}, including their fixed Milky Way model similar to \citet{bovy2015} and their compilation of 6D stream data which we augmented with more precise radial velocities from this work.
 The radial velocity gradient of the best-fit orbit is shown with a teal line in the second panel of Figure~\ref{fig:vr}.
@@ -215,12 +193,10 @@ The best-fit orbit has a pericenter at 13.8\,kpc and an apocenter at 21.5\,kpc, 
 In the third and the fourth panel of Figure~\ref{fig:vr} we show the radial velocity offsets from the best-fit GD-1 orbit (teal).
 Overall, our high-resolution measurements show little deviation from the orbital velocity and reveal a kinematically cold stream with a much lower dispersion than previously measured (third panel).
 Accounting for measurement uncertainties, the intrinsic velocity dispersion is x in the main stream and y in the spur.
-% -- intrinsic dispersion, compare to tangential velocity
 - consistent w much colder than we're seeing
 - possible not reaching pure photon limit due to hectochelle systematics
 - but, more comfortable getting higher-res spectroscopy
 In a multi-year study of stars in the field of the MW globular cluster NGC2419 using MMT/Hectochelle with the same setup as used here, repeated measurements of stars indicate an rms velocity measurement of $0.6\,\kms$ can be achieved, which is similar to the mean uncertainty derived for individual measurements (Caldwell, Freeman, Walker in preparation).
-
 
 To quantify the relative motion between the stream and the spur, we compare the median radial velocity of GD-1 members observed in individual Hectochelle fields (large symbols with black edges in the fourth panel, the errorbars are the standard deviation).
 At two locations where we observed the main stream and the spur in parallel ($\phi_1=-33.7^\circ, -30^\circ$), the relative radial velocity is smaller than $1\,\kms$ and comparable to the measurement uncertainty.
@@ -277,49 +253,10 @@ Alternatively, \citet{webb2019} suggest that the gap at $\phi_1\approx-40^\circ$
 In that case, the spur could be a result of substructure in the progenitor \citep[e.g.,][]{carlberg2018}, instead of forming through an external perturbation.
 As these ideas are developed to more closely match the observed morphology of GD-1, the kinematic data presented here will be essential in quantifying their role in the dynamical history of GD-1.
 
-
-% The present-day location of an object that has impacted a stellar stream can be pinpointed with precise kinematics of the perturbed stream.
-% Excitingly, GD-1 is only one of the streams that display peculiar morphology \citep[][]{pwb, bonaca2019b, bonaca2020}.
-
-
-
 Excitingly, GD-1 is only one of several streams that display peculiar morphology \citep[e.g.,][]{pwb, bonaca2019b, bonaca2020}.
 Our results imply that if these features are a result of an impact to the stream, precise kinematics of the perturbed region will pinpoint the perpetrator.
 The prospect of localization would revolutionize the study of dark matter in the Milky Way.
 Instead of inferring the nature of dark matter through the total abundance \citep[e.g.,][]{carlberg2013} or the mass function of dark-matter subhalos \citep[e.g.,][]{banik2019}, multi-wavelength observations of individual subhalo candidates would enable direct tests of different dark matter models \citep[e.g.,][]{daylan2016}, and add dark matter to the domain of multi-messenger astronomy.
-% Combined with dynamical inferences, dark matter can enter the domain of multi-messenger astronomy.
-
-
-% The searches for dark-matter substructure in the Milky Way have been statistical so far, focusing on the total abundance \citep[e.g.,][]{carlberg2013} or the mass function of dark-matter subhalos \citep[e.g.,][]{banik2019}.
-
-% so localized targets would truly revolutionize
-
-% Localization would revolutionize studies of dark-matter substructure, which have been predominantly statistical and focused on measuring the mass function both in the Milky Way and on cosmological scales \citep[e.g.,][]{carlberg2013, bayer2018}.
-
-% - test the microphysics
-% - dark matter as subject of multi-messenger astronomy
-% 
-% - this would enable observing structures individually, at different wavelengths, gravitationally
-% - stream feeders into the domain of multimessenger astronomy
-
-% - argues for an upgrade of existing kinematic efforts (S5) to higher resolution / targeted, as a means to locate a population
-% - commitment, but huge payoff
-
-% - as shown here, precise kinematics can locate
-% - a high-resolution survey might locate many
-
-% At scrutiny, Milky Way stellar streams display peculiarities that are potential signatures of \citep[][]{pwb, bonaca2019b, bonaca2020}.
-% Whenever we observed a Milky Way stellar stream in detail, we discovered peculiarities \citep[][]{pwb, bonaca2019b, bonaca2020}.
-% All of the stellar streams that have been observed in detail with th Peculiarities have been observed in GD-1 and several other streams \citep[][]{pwb, bonaca2019b, bonaca2020}.
-% consistent with signs of perturbation 
-% - possibility we may be locate many of these
-% - cite bovy, carlberg papers -- these papers show all gaps are from non-baryonic, 
-% - comprehensive spectroscopic surveys of streams at a high resolution, such as the ongoing S5, but designed to provide even more precise radial velocities will be invaluable
-% - commitment, but huge difference in saying statistical properties of perturbers and observing them individually
-% - new opportunity for directly predicting where the perturber is now, would enable direct follow up -- opportunity to study streams in the domain of multimessenger astronomy
-% - get more grandiose as we approach the multimessenger point
-% - not just statistical search any more, but in the domain of multimessenger astronomy
-
 
 It is a pleasure to thank Doug Finkbeiner, Lars Hernquist, Sean Moran, and Hans-Walter Rix for valuable discussions.
 
