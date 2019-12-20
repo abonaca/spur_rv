@@ -1205,10 +1205,17 @@ def lnprob_verbose_noplot(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc,
         return -1e7
     else:
         vr_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.radial_velocity.to(u.km/u.s)[aloop_mask][indmin:indmax])*u.km/u.s
+        pmphi1_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.pm_phi1_cosphi2.to(u.mas/u.yr)[aloop_mask][indmin:indmax])*u.mas/u.yr
+        pmphi2_spur = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[aloop_mask][indmin:indmax], cg.pm_phi2.to(u.mas/u.yr)[aloop_mask][indmin:indmax])*u.mas/u.yr
+        
         isort = np.argsort(cg.phi1.wrap_at(wangle).value[~aloop_mask])
         vr_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.radial_velocity.to(u.km/u.s)[~aloop_mask][isort])*u.km/u.s
+        pmphi1_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.pm_phi1_cosphi2.to(u.mas/u.yr)[~aloop_mask][isort])*u.mas/u.yr
+        pmphi2_stream = np.interp(phi1_list.value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.pm_phi2.to(u.mas/u.yr)[~aloop_mask][isort])*u.mas/u.yr
+        
         chi_vr = np.sum((vr_spur - vr_stream)**2/sigma_vr**2).decompose()
-    
+        
+        
     # gap chi^2
     phi2_mask = np.abs(cg.phi2.value - poly(cg.phi1.wrap_at(wangle).value))<delta_phi2
     h_model, be = np.histogram(cg.phi1[phi2_mask].wrap_at(wangle).value, bins=bins)
@@ -1239,7 +1246,7 @@ def lnprob_verbose_noplot(x, params_units, xend, vend, dt_coarse, dt_fine, Tenc,
     pm2_0 = np.interp(cg.phi1.wrap_at(wangle).value, cg.phi1.wrap_at(wangle).value[~aloop_mask][isort], cg.pm_phi2.to(u.mas/u.yr)[~aloop_mask][isort])*u.mas/u.yr
     dpm2 = pm2_0 - cg.pm_phi2.to(u.mas/u.yr)
 
-    return chi_gap, chi_spur, chi_vr, np.sum(loop_quadrant), lnl, vr0_, vr_stream, vr_spur
+    return chi_gap, chi_spur, chi_vr, np.sum(loop_quadrant), lnl, vr0_, vr_stream, vr_spur, pmphi1_spur, pmphi1_stream, pmphi2_spur, pmphi2_stream
 
 
 def sort_on_runtime(p):
@@ -2429,10 +2436,11 @@ def get_delta_vr(x):
     #print(res)
     
     if isinstance(res, tuple):
-        chi_gap, chi_spur, chi_vr, sum_loop_quadrant, lntot, vr0_, vr_stream, vr_spur = res
-        return vr_stream - vr_spur
+        chi_gap, chi_spur, chi_vr, sum_loop_quadrant, lntot, vr0_, vr_stream, vr_spur, pmphi1_spur, pmphi1_stream, pmphi2_spur, pmphi2_stream = res
+        return (vr_stream - vr_spur, pmphi1_stream - pmphi1_spur, pmphi2_stream - pmphi2_spur)
     else:
-        return -np.inf, -np.inf
+        retinf = np.ones(2) * (-np.inf)
+        return (retinf, retinf, retinf)
     #chi_gap, chi_spur, chi_vr, sum_loop_quadrant, lntot, vr0_, vr_stream, vr_spur = lnprob_verbose_noplot(x, *lnprob_args)
     #return vr_stream - vr_spur
 
@@ -2622,7 +2630,7 @@ def perturber_sky(label='vr_v500_w200', N=10, seed=385761, color='distance'):
     plt.tight_layout()
     plt.savefig('../plots/perturber_today_sky_{:s}_N{:04d}.png'.format(color, N), dpi=200)
 
-def perturber_present_table(label='', N=1000, verbose=False, vr=True):
+def perturber_present_table(label='', N=1000, verbose=False, vr=False):
     """Assemble present-day position of the perturber for every chain element"""
     
     # load perturber properties
@@ -2639,7 +2647,7 @@ def perturber_present_table(label='', N=1000, verbose=False, vr=True):
     if N==0:
         N = np.size(sampler['lnp'])
     #N = 1
-    tout = Table(names=('x', 'y', 'z', 'vx', 'vy', 'vz', 'Timpact', 'bx', 'by', 'vxsub', 'vysub', 'M', 'rs', 'Tgap', 'dvr1', 'dvr2'))
+    tout = Table(names=('x', 'y', 'z', 'vx', 'vy', 'vz', 'Timpact', 'bx', 'by', 'vxsub', 'vysub', 'M', 'rs', 'Tgap', 'dvr1', 'dvr2', 'dmu11', 'dmu12', 'dmu21', 'dmu22'))
     Ntot = np.shape(chain)[0]
 
     np.random.seed(4385)
@@ -2651,7 +2659,11 @@ def perturber_present_table(label='', N=1000, verbose=False, vr=True):
     #for e, ind in enumerate(np.random.randint(0, high=Ntot, size=N)):
     for e, ind in enumerate(indices[:N]):
         x = np.copy(chain[ind])
-        dvr1, dvr2 = get_delta_vr(x)
+        dvr, dmu1, dmu2 = get_delta_vr(x)
+        dvr1, dvr2 = dvr
+        dmu11, dmu12 = dmu1
+        dmu21, dmu22 = dmu2
+        #dvr1, dvr2, dmu11, dmu12, dmu21, dmu22 = get_delta_vr(x)
         
         p = chain[ind]
         p[5] = 10**p[5]
@@ -2723,7 +2735,7 @@ def perturber_present_table(label='', N=1000, verbose=False, vr=True):
         M = np.log10(M.to(u.Msun).value)
         x, y, z = x_
         vx, vy, vz = v_
-        tout.add_row([x, y, z, vx, vy, vz, t_impact, bx, by, vxsub, vysub, M, rs, Tgap, dvr1, dvr2])
+        tout.add_row([x, y, z, vx, vy, vz, t_impact, bx, by, vxsub, vysub, M, rs, Tgap, dvr1, dvr2, dmu11, dmu12, dmu21, dmu22])
     
     tout.pprint()
     tout.write('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N), overwrite=True)
@@ -2809,7 +2821,7 @@ def present_sky(label='dynesty_vr', fvr=0, N=2000, step=0):
     
     plt.savefig('../plots/nest_perturber_today_sgr_{:d}.png'.format(step), dpi=200)
 
-def present_sgr_old(label='v500w200', N=99856, step=0, colorby='mass', dvrcut=False):
+def present_sgr_old(label='v500w200', N=99856, step=0, colorby='mass', dvrcut=False, theta=0*u.deg):
     """"""
     
     t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
@@ -2917,12 +2929,48 @@ def present_sgr_old(label='v500w200', N=99856, step=0, colorby='mass', dvrcut=Fa
         cmap = 'twilight'
         vmin = -5
         vmax = 5
+    elif colorby=='dmu_2':
+        clr = t['dmu22']
+        clabel = '$\Delta$ $\mu_2$($\phi_1$=-30) [mas yr$^-1$]'
+        cmap = 'magma'
+        vmin = -0.4
+        vmax = -0.1
+        #vmin = -0.3
+        #vmax = 0.
+    elif colorby=='dmu1':
+        rotmat = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
+        vin = np.array([t['dmu11'], t['dmu12']])
+        v = np.matmul(rotmat, vin)
+        #np.einsum('ij,jk', a, b)
+        clr = v[0]
+        clabel = '$\Delta\mu$($\phi_1$=-30) [mas yr$^-1$]'
+        cmap = 'magma'
+        vmin = 0.1
+        vmax = 0.9
+        p = np.percentile(clr, [5,95])
+        print(theta, p[1] - p[0])
+        colorby = 'dmu1_{:03.0f}'.format(theta.to(u.deg).value)
+    elif colorby=='dmu2':
+        rotmat = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
+        vin = np.array([t['dmu21'], t['dmu22']])
+        v = np.matmul(rotmat, vin)
+        #np.einsum('ij,jk', a, b)
+        clr = v[0]
+        clabel = '$\Delta\mu$($\phi_1$=-30) [mas yr$^-1$]'
+        cmap = 'magma_r'
+        vmin = 0.1
+        vmax = 0.4
+        p = np.percentile(clr, [5,95])
+        print(theta, p[1] - p[0])
+        colorby = 'dmu2_{:03.0f}'.format(theta.to(u.deg).value)
     elif colorby=='energy':
         clr = energy.to(u.kpc**2/u.Myr**2)
         clabel = 'Energy [kpc$^2$ Myr$^{-2}$]'
         cmap = 'magma'
         vmin = 0.1
         vmax = 0.3
+
+#def br():
 
     plt.close()
     fig = plt.figure(figsize=(12,5.2))
