@@ -245,9 +245,7 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     
     # color-coding
     clr = t['dvr1']
-    #clabel0 = '$\Delta$ V$_{r,\phi_1=-33.7^\circ}}$ [km s$^-1$]'
-    clabel0 = '$\Delta V_{r,spur-stream}$ [km s$^-1$]'
-    #clabel = 'Relative radial velocity [km s$^-1$]'
+    clabel0 = '$\Delta V_{r,stream-spur}$ [km s$^-1$]'
     cmap = 'twilight'
     vmin = -5
     vmax = 5
@@ -258,15 +256,6 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     plt.sca(ax[0])
     isort_clr = np.argsort(clr)[::-1]
     im0 = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=clr, zorder=0, s=2, ec='none', cmap=cmap, vmin=vmin, vmax=vmax, label=label)
-    
-    #plt.legend(frameon=True, loc=4, handlelength=0.2, fontsize='small', markerscale=2)
-    
-    #if step>0:
-        #legend = plt.gca().get_legend()
-        #legend.legendHandles[0].set_color(mpl.cm.twilight(0.5))
-    #if step>2:
-        #legend = plt.gca().get_legend()
-        #legend.legendHandles[1].set_color(mpl.cm.twilight(0.5))
     
     font_tick = 'x-small'
     plt.xticks(fontsize=font_tick)
@@ -283,11 +272,27 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     vsub = np.sqrt(t['vxsub']**2 + t['vysub']**2)
     t = t[ind & ind_bound]
     
+    # color by: perturber velocity
     clr = np.sqrt(t['vxsub']**2 + t['vysub']**2)
     clabel = 'Perturber velocity [km s$^{-1}$]'
     cmap = 'magma'
     vmin = 0
     vmax = 500
+    
+    # color by: proper motion projection
+    #theta = 120*u.deg
+    #rotmat = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
+    #vin = np.array([t['dmu21'], t['dmu22']])
+    #v = np.matmul(rotmat, vin)
+    #clr = v[0]
+    #cmap = 'magma_r'
+    #vmin = 0.1
+    #vmax = 0.4
+    clr = t['dmu22']
+    clabel = '$\Delta \mu_{\phi_2,stream-spur}$ [mas yr$^-1$]'
+    cmap = 'magma'
+    vmin = -0.4
+    vmax = -0.1
 
     c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
     ceq = c.transform_to(coord.ICRS)
@@ -301,7 +306,6 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     label += '\n$|\Delta$ $V_r$| < 1 km s$^{-1}$'
     
     isort_clr = np.argsort(clr)[::-1]
-    #im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=clr, zorder=0, s=3, cmap=cmap, vmin=vmin, vmax=vmax, label=label)
     im = plt.scatter(ceq.ra.wrap_at(wangle).radian[isort_clr], ceq.dec.radian[isort_clr], rasterized=True, c=clr[isort_clr], zorder=0, s=2, ec='none', cmap=cmap, vmin=vmin, vmax=vmax, label=label)
     
     plt.xticks(fontsize=font_tick)
@@ -338,7 +342,8 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
         plt.sca(ax[i])
         pos = plt.gca().get_position()
         cax = plt.axes([0.95,pos.y0,0.025,pos.y1 - pos.y0])
-        cb = plt.colorbar(im, cax=cax, ticks=np.linspace(0,500,6))
+        #cb = plt.colorbar(im, cax=cax, ticks=np.linspace(0,500,6))
+        cb = plt.colorbar(im, cax=cax, ticks=np.linspace(-0.4,-0.1,4))
         plt.yticks(fontsize=font_tick)
         cb.set_label(clabel, fontsize='small')
     
