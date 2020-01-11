@@ -113,7 +113,7 @@ def dvr():
     #print(qpoly)
 
     plt.close()
-    fig, ax = plt.subplots(4,1,figsize=(7,10), sharex=True, gridspec_kw=dict(height_ratios=[1,2,1,1]))
+    fig, ax = plt.subplots(3,1,figsize=(10,10), sharex=True, gridspec_kw=dict(height_ratios=[1,2,1]))
     
     plt.sca(ax[0])
     #plt.plot(tk['phi1'], tk['phi2'], 'o', color='w', mec='none', ms=8, label='')
@@ -125,16 +125,16 @@ def dvr():
     #plt.plot(tk['phi1'], tk['vr'], 'o', color='w', ms=8, mec='none', label='')
     #plt.plot(tk['phi1'], tk['vr'], 'o', color=colors[2], ms=8, alpha=1, mec='none', label='')
     
-    plt.sca(ax[2])
-    plt.axhline(0, color='teal', lw=2, alpha=0.7, zorder=0)
-    #plt.fill_between(np.linspace(-60,-20,10), -5, 5, color='k', alpha=0.2)
+    #plt.sca(ax[2])
+    #plt.axhline(0, color='teal', lw=2, alpha=0.7, zorder=0)
+    ##plt.fill_between(np.linspace(-60,-20,10), -5, 5, color='k', alpha=0.2)
     
     kvr = qpoly(tk['phi1'])
-    plt.errorbar(tk['phi1'], tk['vr'] - kvr, yerr=tk['err'], fmt='o', color=colors[2], lw=2, alpha=1, label='', zorder=0)
-    #plt.plot(tk['phi1'], tk['vr'] - kvr, 'o', color='w', ms=8, mec='none', label='')
-    #plt.plot(tk['phi1'], tk['vr'] - kvr, 'o', color=colors[2], ms=8, alpha=1, mec='none', label='')
+    #plt.errorbar(tk['phi1'], tk['vr'] - kvr, yerr=tk['err'], fmt='o', color=colors[2], lw=2, alpha=1, label='', zorder=0)
+    ##plt.plot(tk['phi1'], tk['vr'] - kvr, 'o', color='w', ms=8, mec='none', label='')
+    ##plt.plot(tk['phi1'], tk['vr'] - kvr, 'o', color=colors[2], ms=8, alpha=1, mec='none', label='')
     
-    plt.sca(ax[3])
+    plt.sca(ax[2])
     plt.axhline(0, color='teal', lw=2, alpha=0.7, zorder=0)
     plt.errorbar(tk['phi1'], tk['vr'] - kvr, yerr=tk['err'], fmt='o', color=colors[2], lw=2, alpha=1, label='', zorder=0)
     #plt.fill_between(np.linspace(-60,-20,10), -5, 5, color='k', alpha=0.2)
@@ -153,9 +153,9 @@ def dvr():
         #plt.plot(t['phi1'][ind], t['Vrad'][ind] - vr, 'o', color=colors[e], ms=8)
         plt.errorbar(t['phi1'][ind], t['Vrad'][ind] - vr, yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt='o', color=colors[e], zorder=0, lw=2)
         
-        plt.sca(ax[3])
-        #plt.plot(t['phi1'][ind], t['Vrad'][ind] - vr, 'o', color=colors[e], ms=3, alpha=0.3)
-        plt.errorbar(t['phi1'][ind], t['Vrad'][ind] - vr, yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt='o', color=colors[e], zorder=0, lw=2, alpha=1)
+        #plt.sca(ax[3])
+        ##plt.plot(t['phi1'][ind], t['Vrad'][ind] - vr, 'o', color=colors[e], ms=3, alpha=0.3)
+        #plt.errorbar(t['phi1'][ind], t['Vrad'][ind] - vr, yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt='o', color=colors[e], zorder=0, lw=2, alpha=1)
         
     # medians
     phi1_med = np.zeros(8)
@@ -164,7 +164,7 @@ def dvr():
     vr_std = np.zeros(8)
     
     for e, ind in enumerate([stream, spur]):
-        plt.sca(ax[3])
+        plt.sca(ax[2])
         fields = np.unique(t['field'][ind])
         
         for ee, f in enumerate(fields):
@@ -184,26 +184,26 @@ def dvr():
     plt.sca(ax[0])
     plt.scatter(g['phi1'], g['phi2'], s=g['pmem']*4, c=g['pmem'], cmap=mpl.cm.binary, vmin=0.5, vmax=1.1, zorder=0, label='')
     plt.ylim(-4,4)
-    plt.xlim(-50, -10)
+    plt.xlim(-48, -26)
     plt.ylabel('$\phi_2$ [deg]')
     plt.legend(ncol=2, frameon=False, handlelength=0.6, loc=3, fontsize='small')
     
     plt.sca(ax[1])
-    plt.ylim(-240,40)
+    plt.ylim(-140,49)
     plt.ylabel('$V_r$ [km s$^{-1}$]')
     
-    plt.sca(ax[2])
-    plt.ylim(-35, 35)
-    plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
+    #plt.sca(ax[2])
+    #plt.ylim(-35, 35)
+    #plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
 
-    plt.sca(ax[3])
-    plt.ylim(-6,6)
+    plt.sca(ax[2])
+    plt.ylim(-10,10)
     plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
     plt.xlabel('$\phi_1$ [deg]')
     
     
     plt.tight_layout(h_pad=0)
-    plt.savefig('../paper/gd1_kinematics.pdf')
+    #plt.savefig('../paper/gd1_kinematics.pdf')
 
 def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     """"""
