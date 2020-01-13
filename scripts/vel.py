@@ -1891,7 +1891,8 @@ def get_members(t, full=False):
     
     # feh selection
     fehlims = np.array([-2.8, -1.9])
-    #fehlims = np.array([-2.8, -2.])
+    fehlims = np.array([-2.8, -2.1])
+    fehlims = np.array([-2.55, -1.8])
     #fehlims = np.array([-2.6, -2.1])
     fehmem = (t['FeH']>fehlims[0]) & (t['FeH']<fehlims[1]) #& (t['aFe']>0.2)
     
@@ -1899,7 +1900,10 @@ def get_members(t, full=False):
     pm1lims = np.array([-9,-4.5])
     pm2lims = np.array([-1.7,1])
     pm1lims = np.array([-9,-6.5])
-    #pm2lims = np.array([-1.3,0.7])
+    
+    pm1lims = np.array([-10,-5.5])
+    pm2lims = np.array([-2.5,2])
+    
     pmmem = (t['pm_phi1_cosphi2']>pm1lims[0]) & (t['pm_phi1_cosphi2']<pm1lims[1]) & (t['pm_phi2']>pm2lims[0]) & (t['pm_phi2']<pm2lims[1])
     pmbox = np.array([[pm1lims[0], pm2lims[0]],[pm1lims[0], pm2lims[1]], [pm1lims[1], pm2lims[1]], [pm1lims[1], pm2lims[0]]])
     #print(np.shape(cmdbox), np.shape(pmbox))
