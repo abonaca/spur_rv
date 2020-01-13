@@ -96,8 +96,14 @@ def dvr():
     cstream = mpl.cm.Blues_r(0.4)
     colors = [cstream, cspur, 'darkorange']
     colors = ['darkorange', 'orangered', 'navy']
-    colors = ['darkorange', 'orangered', '0.8']
+    
     labels = ['Bonaca et al. (2020)', '', 'Koposov et al. (2010)']
+    colors = ['darkorange', 'orangered', '0.8']
+    colors = ['darkorange', 'red', '0.7']
+    markers = ['o', '*', 'o']
+    sizes = [10, 18, 8]
+    msizes = [6.5, 10, 6]
+    ms = 6
     
     tk = Table.read('../data/koposov_vr.dat', format='ascii.commented_header')
 
@@ -113,15 +119,15 @@ def dvr():
     #print(qpoly)
 
     plt.close()
-    fig, ax = plt.subplots(3,1,figsize=(10,10), sharex=True, gridspec_kw=dict(height_ratios=[1,2,1]))
+    fig, ax = plt.subplots(3,1,figsize=(10,7), sharex=True, gridspec_kw=dict(height_ratios=[1,1.6,1.4]))
     
     plt.sca(ax[0])
     #plt.plot(tk['phi1'], tk['phi2'], 'o', color='w', mec='none', ms=8, label='')
-    plt.plot(tk['phi1'], tk['phi2'], 'o', color=colors[2], alpha=1, label=labels[2])
+    p1, = plt.plot(tk['phi1'], tk['phi2'], 'o', color=colors[2], alpha=1, label=labels[2], ms=ms)
     
     plt.sca(ax[1])
     plt.plot(xphi, yvr, '-', color='teal', lw=2, alpha=0.7)
-    plt.errorbar(tk['phi1'], tk['vr'], yerr=tk['err'], fmt='o', color=colors[2], lw=2, alpha=1, label='')
+    plt.errorbar(tk['phi1'], tk['vr'], yerr=tk['err'], fmt='o', color=colors[2], lw=2, alpha=1, label='', ms=ms)
     #plt.plot(tk['phi1'], tk['vr'], 'o', color='w', ms=8, mec='none', label='')
     #plt.plot(tk['phi1'], tk['vr'], 'o', color=colors[2], ms=8, alpha=1, mec='none', label='')
     
@@ -136,22 +142,25 @@ def dvr():
     
     plt.sca(ax[2])
     plt.axhline(0, color='teal', lw=2, alpha=0.7, zorder=0)
-    plt.errorbar(tk['phi1'], tk['vr'] - kvr, yerr=tk['err'], fmt='o', color=colors[2], lw=2, alpha=1, label='', zorder=0)
+    plt.errorbar(tk['phi1'], tk['vr'] - kvr, yerr=tk['err'], fmt='o', color=colors[2], lw=2, alpha=1, label='', zorder=0, ms=ms)
     #plt.fill_between(np.linspace(-60,-20,10), -5, 5, color='k', alpha=0.2)
+    
+    p2 = []
     
     for e, ind in enumerate([stream, spur]):
         plt.sca(ax[0])
-        plt.plot(t['phi1'][ind], t['phi2'][ind], 'o', color=colors[e], label=labels[e])
+        p_, = plt.plot(t['phi1'][ind], t['phi2'][ind], marker=markers[e], ls='none', color=colors[e], label=labels[e], ms=msizes[e])
+        p2 += [p_]
         
         plt.sca(ax[1])
-        plt.errorbar(t['phi1'][ind], t['Vrad'][ind], yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), color=colors[e], fmt='o', label='')
+        plt.errorbar(t['phi1'][ind], t['Vrad'][ind], yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), color=colors[e], fmt=markers[e], label='', ms=msizes[e])
         #plt.plot(t['phi1'][ind], t['Vrad'][ind], 'o', color=colors[e], ms=8, label=labels[e])
         
         plt.sca(ax[2])
         vr = qpoly(t['phi1'][ind])
         
         #plt.plot(t['phi1'][ind], t['Vrad'][ind] - vr, 'o', color=colors[e], ms=8)
-        plt.errorbar(t['phi1'][ind], t['Vrad'][ind] - vr, yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt='o', color=colors[e], zorder=0, lw=2)
+        plt.errorbar(t['phi1'][ind], t['Vrad'][ind] - vr, yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt=markers[e], color=colors[e], zorder=0, lw=2, ms=msizes[e])
         
         #plt.sca(ax[3])
         ##plt.plot(t['phi1'][ind], t['Vrad'][ind] - vr, 'o', color=colors[e], ms=3, alpha=0.3)
@@ -171,7 +180,7 @@ def dvr():
             ifield = t['field']==f
             vr = qpoly(t['phi1'][ind & ifield])
             plt.errorbar(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), yerr=np.std(t['Vrad'][ind & ifield]), fmt='none', color='k', lw=2, zorder=ee+2)
-            plt.plot(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), 'o', color=colors[e], ms=10, mec='k', mew=2, zorder=ee+3)
+            plt.plot(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), marker=markers[e], color=colors[e], ms=sizes[e], mec='k', mew=2, zorder=ee+3+e)
             
             phi1_med[f-1] = np.median(t['phi1'][ind & ifield])
             vr_med[f-1] = np.median(t['Vrad'][ind & ifield] - vr)
@@ -186,7 +195,9 @@ def dvr():
     plt.ylim(-4,4)
     plt.xlim(-48, -26)
     plt.ylabel('$\phi_2$ [deg]')
-    plt.legend(ncol=2, frameon=False, handlelength=0.6, loc=3, fontsize='small')
+    
+    plt.legend([p1, (p2[0], p2[1])],[labels[2], labels[0]], handler_map={p2[0]:HandlerLine2D(numpoints=2), p2[1]:HandlerLine2D(numpoints=1)}, ncol=2, frameon=False, handlelength=2.5, loc=3, fontsize='small', numpoints=1)
+    #plt.legend(ncol=2, frameon=False, handlelength=0.6, loc=3, fontsize='small')
     
     plt.sca(ax[1])
     plt.ylim(-140,49)
@@ -197,13 +208,16 @@ def dvr():
     #plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
 
     plt.sca(ax[2])
-    plt.ylim(-10,10)
+    plt.ylim(-9,9)
     plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
     plt.xlabel('$\phi_1$ [deg]')
     
     
     plt.tight_layout(h_pad=0)
-    #plt.savefig('../paper/gd1_kinematics.pdf')
+    plt.savefig('../paper/gd1_kinematics.pdf')
+
+from matplotlib.legend_handler import HandlerLine2D
+
 
 def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     """"""
