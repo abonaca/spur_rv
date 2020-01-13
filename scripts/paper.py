@@ -1,5 +1,6 @@
 from model import *
 from vel import get_members
+from matplotlib.legend_handler import HandlerLine2D
 
 wangle = 180*u.deg
 steelblue = '#a2b3d2'
@@ -216,9 +217,6 @@ def dvr():
     plt.tight_layout(h_pad=0)
     plt.savefig('../paper/gd1_kinematics.pdf')
 
-from matplotlib.legend_handler import HandlerLine2D
-
-
 def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     """"""
     
@@ -263,14 +261,15 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     # color-coding
     clr = t['dvr1']
     clabel0 = '$\Delta V_{r,stream-spur}$ [km s$^-1$]'
+    clabel0 = '$\Delta V_{r}$ [km s$^-1$]'
     cmap = 'twilight'
     vmin = -5
     vmax = 5
 
     plt.close()
-    fig, ax = plt.subplots(3,1,figsize=(6,10), subplot_kw=dict(projection='mollweide'))
+    fig, ax = plt.subplots(2,2,figsize=(12,6.5), subplot_kw=dict(projection='mollweide'))
     
-    plt.sca(ax[0])
+    plt.sca(ax[0][0])
     isort_clr = np.argsort(clr)[::-1]
     im0 = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=clr, zorder=0, s=2, ec='none', cmap=cmap, vmin=vmin, vmax=vmax, label=label)
     
@@ -282,7 +281,7 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     plt.ylabel('Dec [deg]', fontsize='small')
     plt.title('Objects producing a GD-1 spur', fontsize=17, pad=15)
 
-    plt.sca(ax[1])
+    plt.sca(ax[0][1])
     
     ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
     ind_bound = ekin<epot
@@ -297,17 +296,10 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     vmax = 500
     
     # color by: proper motion projection
-    #theta = 120*u.deg
-    #rotmat = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
-    #vin = np.array([t['dmu21'], t['dmu22']])
-    #v = np.matmul(rotmat, vin)
-    #clr = v[0]
-    #cmap = 'magma_r'
-    #vmin = 0.1
-    #vmax = 0.4
     clr = t['dmu22']
     clabel = '$\Delta \mu_{\phi_2,stream-spur}$ [mas yr$^-1$]'
-    cmap = 'magma'
+    clabel = '$\Delta \mu$ [mas yr$^-1$]'
+    cmap = 'magma_r'
     vmin = -0.4
     vmax = -0.1
 
@@ -332,38 +324,96 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     plt.title('Objects producing a comoving GD-1 spur', fontsize=17, pad=15)
     
     
-    plt.sca(ax[2])
-    isort_clr = np.argsort(clr)[::-1]
-    im = plt.scatter(ceq.ra.wrap_at(wangle).radian[isort_clr], ceq.dec.radian[isort_clr], rasterized=True, c=clr[isort_clr], zorder=0, s=2, ec='none', cmap=cmap, vmin=vmin, vmax=vmax, label='')
-    plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'o', color='0.2', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius dark matter\n(Dierickx & Loeb 2017)')
+    plt.sca(ax[1][0])
+    #plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'o', color='0.2', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius dark matter\n(Dierickx & Loeb 2017)')
+    plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'o', color='0.2', ms=2, mew=0, alpha=0.3, rasterized=True, label='Dierickx & Loeb (2017)')
+    
+    # running median
+    Nbin = 30
+    ra_ed = np.linspace(-180,180,Nbin+1)*u.deg
+    ra_med = 0.5*(ra_ed[1:] + ra_ed[:-1])
+    dec_med = np.zeros(Nbin)*u.deg
+    dec_up = np.zeros(Nbin)*u.deg
+    dec_dn = np.zeros(Nbin)*u.deg
+
+    # in sgr coordinates
+    csgr = cdm.transform_to(gc.Sagittarius)
+    for i in range(Nbin):
+        ind = (csgr.Lambda.wrap_at(wangle)>ra_ed[i]) & (csgr.Lambda.wrap_at(wangle)<ra_ed[i+1])
+        dec_med[i] = np.median(csgr.Beta[ind])
+        dec_dn[i], dec_up[i] = np.percentile(csgr.Beta[ind], [25,75])*u.deg
+    
+    cmed_sgr = gc.Sagittarius(Lambda=ra_med, Beta=dec_med)
+    cup_sgr = gc.Sagittarius(Lambda=ra_med, Beta=dec_up)
+    cdn_sgr = gc.Sagittarius(Lambda=ra_med, Beta=dec_dn)
+    
+    cmed = cmed_sgr.transform_to(coord.ICRS)
+    cup = cup_sgr.transform_to(coord.ICRS)
+    cdn = cdn_sgr.transform_to(coord.ICRS)
+    
+    isort = np.argsort(cmed.ra.wrap_at(wangle).radian)
+    cmed = cmed[isort]
+    isort = np.argsort(cup.ra.wrap_at(wangle).radian)
+    cup = cup[isort]
+    isort = np.argsort(cdn.ra.wrap_at(wangle).radian)
+    cdn = cdn[isort]
+    
+    plt.plot(cmed.ra.wrap_at(wangle).radian, cmed.dec.radian, 'k-', lw=2, alpha=0.8, label='Median')
+    plt.plot(cup.ra.wrap_at(wangle).radian, cup.dec.radian, 'k-', lw=2, alpha=0.5, label='Interquartile range')
+    plt.plot(cdn.ra.wrap_at(wangle).radian, cdn.dec.radian, 'k-', lw=2, alpha=0.5, label='')
+    #plt.fill_between(cdn.ra.wrap_at(wangle).radian, cdn.dec.radian, cup.dec.radian, color='k', alpha=0.3)
+    #plt.plot(ra_med, dec_med, 'k-', lw=2)
     
     plt.legend(loc=4, fontsize='x-small', markerscale=2, handlelength=0.5)
     plt.xticks(fontsize=font_tick)
     plt.yticks(fontsize=font_tick)
     plt.xlabel('R.A. [deg]', fontsize='small')
     plt.ylabel('Dec [deg]', fontsize='small')
+    plt.title('Simulated Sagittarius dark matter debris', fontsize=17, pad=15)
+    
+    plt.sca(ax[1][1])
+    isort_clr = np.argsort(clr)[::-1]
+    im = plt.scatter(ceq.ra.wrap_at(wangle).radian[isort_clr], ceq.dec.radian[isort_clr], rasterized=True, c=clr[isort_clr], zorder=0, s=2, ec='none', cmap=cmap, vmin=vmin, vmax=vmax, label='')
+    plt.plot(cmed.ra.wrap_at(wangle).radian, cmed.dec.radian, 'k-', lw=2, alpha=0.8)
+    plt.plot(cup.ra.wrap_at(wangle).radian, cup.dec.radian, 'k-', lw=2, alpha=0.5)
+    plt.plot(cdn.ra.wrap_at(wangle).radian, cdn.dec.radian, 'k-', lw=2, alpha=0.5)
+    #plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'o', color='0.2', ms=2, mew=0, alpha=0.3, rasterized=True, label='Sagittarius dark matter\n(Dierickx & Loeb 2017)')
+    
+    ra0 = coord.Angle(65*u.deg)
+    dec0 = coord.Angle(-10*u.deg)
+    plt.text(ra0.radian, dec0.radian, 'Sagittarius', rotation=-17, fontsize=15, bbox=dict(facecolor='w', ec='none', alpha=0.7, boxstyle='round', pad=0.2))
+    
+    #plt.legend(loc=4, fontsize='x-small', markerscale=2, handlelength=0.5)
+    plt.xticks(fontsize=font_tick)
+    plt.yticks(fontsize=font_tick)
+    plt.xlabel('R.A. [deg]', fontsize='small')
+    plt.ylabel('Dec [deg]', fontsize='small')
     plt.title('Objects producing a comoving GD-1 spur + Sagittarius', fontsize=17, pad=15)
     
+    plt.tight_layout(w_pad=5)
     
-    plt.tight_layout()
-    
-    # colorbar
-    plt.sca(ax[0])
+    # colorbars
+    plt.sca(ax[0][0])
     pos = plt.gca().get_position()
-    cax = plt.axes([0.95,pos.y0,0.025,pos.y1 - pos.y0])
+    cax = plt.axes([pos.x1+0.007,pos.y0,0.013,pos.y1 - pos.y0])
     plt.colorbar(im0, cax=cax, ticks=[-5,-2.5,0,2.5,5])
     plt.yticks(fontsize=font_tick)
     plt.ylabel(clabel0, fontsize='small')
-
-    for i in range(1,3):
-        plt.sca(ax[i])
-        pos = plt.gca().get_position()
-        cax = plt.axes([0.95,pos.y0,0.025,pos.y1 - pos.y0])
-        #cb = plt.colorbar(im, cax=cax, ticks=np.linspace(0,500,6))
-        cb = plt.colorbar(im, cax=cax, ticks=np.linspace(-0.4,-0.1,4))
-        plt.yticks(fontsize=font_tick)
-        cb.set_label(clabel, fontsize='small')
     
+    plt.sca(ax[0][1])
+    pos = plt.gca().get_position()
+    cax = plt.axes([pos.x1+0.007,pos.y0,0.013,pos.y1 - pos.y0])
+    cb = plt.colorbar(im, cax=cax, ticks=np.linspace(-0.4,-0.1,4))
+    plt.yticks(fontsize=font_tick)
+    cb.set_label(clabel, fontsize='small')
+    
+    plt.sca(ax[1][1])
+    pos = plt.gca().get_position()
+    cax = plt.axes([pos.x1+0.007,pos.y0,0.013,pos.y1 - pos.y0])
+    plt.colorbar(im, cax=cax, ticks=np.linspace(-0.4,-0.1,4))
+    plt.yticks(fontsize=font_tick)
+    plt.ylabel(clabel, fontsize='small')
+
     #plt.savefig('../paper/skybox.png')
     plt.savefig('../paper/skybox.pdf')
 
