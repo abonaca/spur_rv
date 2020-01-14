@@ -1292,6 +1292,22 @@ def exhibit_spectra(verbose=False):
     
     plt.savefig('../paper/spectra.pdf')
 
+def print_pix_precision():
+    """Print velocity precision of 1km/s in pixels"""
+    n = 1
+    date = get_date(n)
+    exp_label = 'ex1'
+    fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.{2:s}.fits'.format(n, date, exp_label)
+    hdu = fits.open(fname)
+    
+    w = hdu[0].data[0]
+    wmean = 0.5*(w[1:] + w[:-1])
+    dw = w[1:] - w[:-1]
+    
+    dv = 1*u.km/u.s
+    dlambda = wmean - wmean/(1 - (dv/c).decompose().value)
+    print(np.abs(np.median(dlambda/dw)))
+    
 
 def mem_fnames():
     """"""
