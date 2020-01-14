@@ -1,6 +1,7 @@
 from model import *
 from vel import get_members
 from matplotlib.legend_handler import HandlerLine2D
+import healpy as hp
 
 wangle = 180*u.deg
 steelblue = '#a2b3d2'
@@ -233,7 +234,7 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     energy = orbit.energy()[0,:]
     
     label = 'GD-1 perturber now'
-    ind = (np.abs(t['dvr1'])<0.5) & (np.abs(t['dvr2'])<0.5)
+    #ind = (np.abs(t['dvr1'])<0.5) & (np.abs(t['dvr2'])<0.5)
     
     cplane = coord.Galactic(l=np.linspace(0,360,100)*u.deg, b=np.zeros(100)*u.deg)
     cplane_eq = cplane.transform_to(coord.ICRS)
@@ -466,4 +467,37 @@ def publish_catalog():
     t.pprint()
     t.write('../data/catalog.fits', overwrite=True)
 
-
+def occupation(nside=64):
+    """"""
+    label = 'v500w200'
+    N = 99856
+    t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
+    c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+    ceq = c.transform_to(coord.ICRS)
+    
+    cgal = c.transform_to(coord.Galactic)
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    orbit = ham.integrate_orbit(w0, dt=1., n_steps=1)
+    epot = orbit.potential_energy()[0,:]
+    ekin = orbit.kinetic_energy()[0,:]
+    
+    ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
+    ind_bound = ekin<epot
+    ceq2 = ceq[ind & ind_bound]
+    #vsub = np.sqrt(t['vxsub']**2 + t['vysub']**2)
+    #t = t[ind & ind_bound]
+    
+    res = (hp.nside2resol(nside, arcmin=True)*u.arcmin).to(u.deg)
+    area = hp.nside2pixarea(nside, degrees=True)
+    ntot = hp.nside2npix(nside)
+    print('{:.1f} deg^2'.format(area))
+    
+    ipix = hp.ang2pix(nside, ceq.ra.degree, ceq.dec.degree, lonlat=True)
+    n0 = np.size(np.unique(ipix))
+    
+    ipix_dvr = hp.ang2pix(nside, ceq2.ra.degree, ceq2.dec.degree, lonlat=True)
+    ndvr = np.size(np.unique(ipix_dvr))
+    
+    print(n0/ntot, ndvr/ntot, ndvr/n0)
+    print(n0*area, ndvr*area)
+    
