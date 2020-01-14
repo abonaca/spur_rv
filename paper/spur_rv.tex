@@ -33,34 +33,34 @@
 
 \title{The GD-1 stellar stream and its comoving spur lead the way to\\dynamically locating hidden objects in the Milky Way}
 
-\correspondingauthor{Ana Bonaca}
+\correspondingauthor{Ana~Bonaca}
 \email{ana.bonaca@cfa.harvard.edu}
 
-\author[0000-0002-7846-9787]{Ana Bonaca}
+\author[0000-0002-7846-9787]{Ana~Bonaca}
 \affil{Center for Astrophysics | Harvard \& Smithsonian, 60 Garden Street, Cambridge, MA 02138, USA}
 
-\author[0000-0002-1590-8551]{Charlie Conroy}
+\author[0000-0002-1590-8551]{Charlie~Conroy}
 \affil{Center for Astrophysics | Harvard \& Smithsonian, 60 Garden Street, Cambridge, MA 02138, USA}
 
-\author[0000-0003-2866-9403]{David W. Hogg}
+\author[0000-0003-2866-9403]{David~W.~Hogg}
 \affiliation{Center for Cosmology and Particle Physics, Department of Physics, New York University}
 \affiliation{Center for Data Science, New York University}
 \affiliation{Max-Planck-Institut f\"ur Astronomie, Heidelberg}
 \affiliation{Center for Computational Astrophysics, Flatiron Institute, 162 Fifth Avenue, NY 10010, USA}
 
-\author{Phillip Cargile}
+\author{Phillip~A.~Cargile}
 \affil{Center for Astrophysics | Harvard \& Smithsonian, 60 Garden Street, Cambridge, MA 02138, USA}
 
-\author{Nelson Caldwell}
+\author{Nelson~Caldwell}
 \affil{Center for Astrophysics | Harvard \& Smithsonian, 60 Garden Street, Cambridge, MA 02138, USA}
 
-\author{Rohan~P.~Naidu}
+\author[0000-0003-3997-5705]{Rohan~P.~Naidu}
 \affil{Center for Astrophysics | Harvard \& Smithsonian, 60 Garden Street, Cambridge, MA 02138, USA}
 
 \author[0000-0003-0872-7098]{Adrian~M.~Price-Whelan}
 \affiliation{Center for Computational Astrophysics, Flatiron Institute, 162 Fifth Avenue, NY 10010, USA}
 
-\author{Joshua Speagle}
+\author[0000-0002-5065-9896]{Joshua~S.~Speagle}
 \affil{Center for Astrophysics | Harvard \& Smithsonian, 60 Garden Street, Cambridge, MA 02138, USA}
 
 \author{Benjamin~D.~Johnson}
@@ -103,10 +103,10 @@ With no known luminous object having approached GD-1 sufficiently close, there i
 \begin{center}
 \includegraphics[width=0.99\textwidth]{members.pdf}
 \end{center}
-\caption{We defined membership to the GD-1 stream with four selection criteria: (1) proper motion box \citep[from][not shown]{pwb}, (2) isochrone box (left), (3) small radial velocity offset from the GD-1 orbit (center), (4) low metallicity (right).
-Starting with the proper motion selection, panels from left to right add selections marked with pink dashed lines and decrease membership to the number in the top right of the panel.
-In each panel, the members and non-members are shown in dark and light blue, respectively.
-Our final sample has 47 high-probability GD-1 members.
+\caption{We defined membership to the GD-1 stream with four selection criteria: (1) proper motion box (top left), (2) isochrone box (top middle), (3) small radial velocity offset from the GD-1 orbit (top right), (4) low metallicity (bottom).
+Starting clockwise with the proper motion selection, panels add selections marked with pink dashed lines and decrease membership to the number in the top right of the panel.
+In each panel, the non-members, preliminary and high-probability members are shown in light, medium and dark blue, respectively.
+The GD-1 spur (stars) is kinematically and chemically consistent with the main stream (circles).
 }
 \label{fig:members}
 \end{figure*}
@@ -136,35 +136,62 @@ For the analysis we retained 1160 well-fit spectra with $S/N\geq3$.
 Radial velocities are measured to better than $\lesssim1\,\kms$ (median $\sigma_{V_r}=0.2\,\kms$), while typical uncertainties for [Fe/H] and [$\alpha$/Fe] are $0.06$\,dex and $0.04$\,dex, respectively.
 Despite the sub-$\kms$ statistical precision, sky-emission lines can show variations of up to $\approx1\,\kms$ across the two camera chips and between different exposures.
 % A multi-year study of globular cluster NGC~2419 MMT/Hectochelle with the same setup as used here, repeated measurements of stars indicate an rms velocity measurement of $0.6\,\kms$ can be achieved, which is similar to the mean uncertainty derived for individual measurements (Caldwell et al., in preparation).
-Our overall kinematic precision is therefore systematics-dominated at $\approx1\,\kms$, comparable to that typically achieved with Hectochelle \citep[e.g.,][]{caldwell2017}.
+Our overall kinematic precision is therefore systematics-dominated at $\approx1\,\kms$ ($\approx0.2\,\rm pix$), comparable to that typically achieved with Hectochelle \citep[e.g.,][]{caldwell2017}.
 % , and sufficient to resolve the GD-1 internal dispersion \citep{malhan2019}.
 
 \section{Stream membership}
 \label{sec:membership}
 
-Since GD-1 is a retrograde, metal-poor stream, membership selection based on \gaia\ proper motions \citep{gdr2} and de-reddened \pans\ photometry \citep{sfd, ps1} is very efficient \citep[e.g.,][]{pwb}.
-The left panel of Figure~\ref{fig:members} shows the color-magnitude diagram (CMD) of all targeted stars: those with GD-1-like proper motions are dark blue ($-9<\mu_{\phi_1}/\masyr<-4.5$ and $-1.7<\mu_{\phi_2}/\masyr<1$, corrected for solar reflex motion following \citealt{pwb}), and the filler retrograde stars are light blue.
-We further consider stars close to the $\textrm{[Fe/H]}=-1.5$, 12.6\,Gyr isochrone at 7.8\,kpc \citep{choi2016} as more likely GD-1 members.
-The isochrone selection box (dashed pink) is tighter around the GD-1's main sequence where the contrast with respect to the Milky Way field is higher, and more generous at the red giant branch, allowing for uncertainties in the adopted isochrone.
-Across the eight observed fields, a total of 82 stars satisfy the proper motion and CMD selection criteria.
+We define a sample of highly probable GD-1 member stars using their \gaia\ proper motions \citep{gdr2}, de-reddened \pans\ photometry \citep{sfd, ps1}, and our measurements of radial velocity and metallicity.
+Figure~\ref{fig:members} shows the adopted selection criteria in dashed pink, our spectroscopic sample in light blue, preliminary GD-1 members in medium blue, and final member selection in dark blue, with circles and stars for members in the main stream and the spur, respectively.
 
-Most of these likely members have small radial velocity offsets from the GD-1's orbit\footnote{we derived an updated GD-1 orbit in Section~\ref{sec:kinematics}} (Figure~\ref{fig:members}, middle panel).
-% We used the orbital solution from \citet{pwb}, which is $\Delta V_r\approx10\,\kms$ offset from Hectochelle radial velocities, so 
-We further select 50 more-likely members with velocity offsets $|\Delta V_r| < 7\,\kms$.
-Stars from both the main stream and the spur satisfy these criteria, indicating that the spur is dynamically associated with GD-1.
-We explore this connection in more detail in Section~\ref{sec:kinematics}.
-Thus selected GD-1 members are predominantly metal-poor (median $\feh=-2.32\pm0.17$), as found by \citet{malhan2019}, so we adopt $-2.8<\feh<-1.9$ as our final criterion for GD-1 membership (Figure~\ref{fig:members}, right).
-Although wide, this metallicity selection removes only three kinematically identified members for a final sample of 47 most likely GD-1 stars.
-The full spectroscopic sample with GD-1 membership flags we used is publicly available.\footnote{See \url{https://github.com/abonaca/spur_rv}.}
-% through Zenodo (\dataset[10.5281/zenodo.1295543]{https://doi.org/10.5281/zenodo.1295543})\footnote{See also \url{https://github.com/abonaca/spur_rv}.}
+Following \citet{pwb}, we start with a generous selection in proper motions (corrected for solar reflex motion): $-10<\mu_{\phi_1}/\masyr<-5.5$ and $-2.5<\mu_{\phi_2}/\masyr<2$ (Figure~\ref{fig:members}, top left).
+We further consider stars close to the $\textrm{[Fe/H]}=-2.3$, 12.6\,Gyr isochrone at 8.5\,kpc \citep{choi2016} as more likely GD-1 members (top middle).
+The isochrone selection box is tighter around the GD-1's main sequence where the contrast with respect to the Milky Way field is higher, and wider along the red giant branch.
+Next, we require GD-1 members to have a small radial velocity offset from the GD-1's orbit\footnote{we derived an updated GD-1 orbit in Section~\ref{sec:kinematics}}, $|\Delta V_r| < 7\,\kms$ (top right).
+Finally, we select stars with $-2.55<\feh<-1.8$ for a final sample of 45 most likely GD-1 stars (Figure~\ref{fig:members}, bottom).
+In the interest of producing a pure sample, our spectroscopic selection criteria are rather stringent.
+Future analyses may improve the completeness of this sample using probabilistic membership approaches.
+The full spectroscopic sample with GD-1 membership flags we developed is publicly available.\footnote{See \url{https://github.com/abonaca/spur_rv}.}
 
-GD-1 is a stream with no identified progenitor, so we also use derived chemical abundances to differentiate between a globular cluster and a dwarf galaxy origin.
-% In addition to determining membership, chemical abundances of stream stars are the best way to differentiate between a globular cluster and a dwarf galaxy origin in the absence of a progenitor.
-% Abundance spreads are typically a signature of a dwarf galaxy origin \citep[e.g.,][]{willman2012}, however, globular clusters observed with the same instrumental setup as used here (although at a higher signal-to-noise ratio) show spreads on the order of $\approx0.05-0.1$\,dex \citep{cargile2019}.
-Abundance spreads are typically a signature of a dwarf galaxy origin \citep[e.g.,][]{willman2012}, however, globular clusters observed with the same instrumental setup as used here show abundance spreads comparable to the measurement uncertainty \citep[$\approx0.05-0.1$\,dex,][]{cargile2019}.
-The standard deviations in $\feh$ and $\afe$ of GD-1 members are 0.17\,dex and 0.16\,dex, respectively, and are almost entirely accounted for by the measurement uncertainties (median $\sigma_\feh=0.16$\,dex, $\sigma_\afe=0.14$\,dex, larger than for our typical target since most of the members are faint main-sequence stars).
-These data suggest that GD-1 is likely a disrupted globular cluster, as previously inferred from its narrow width \citep[e.g.,][]{grillmair2006} and cold kinematics \citep[e.g.,][]{malhan2019}.
-More detailed abundances will enable an even more efficient membership selection, and a definitive classification of GD-1's progenitor.
+GD-1 stars in the main stream and in the spur have similar radial velocities and chemical abundances, demonstrating that the spur is indeed a part of GD-1.
+The stellar population in GD-1 is metal-poor, $\feh=-2.3\pm0.1$, and alpha-enhanced, $\afe=0.4\pm0.2$.
+Abundance spreads in both \feh\ and \afe\ can be accounted for by the measurement uncertainties in the overall sample, but for a subset of high signal-to-noise stars ($S/N>10$), the variation in \afe\ is three times larger than the measurement uncertainty.
+Variations in the abundance of light elements and little \feh\ spread are commonly observed in globular clusters \citep{gratton2019}.
+These abundance trends, combined with a low velocity dispersion (Section~\ref{sec:kinematics}), indicate that GD-1 stream is a disrupted globular cluster.
+
+% The standard deviations in $\feh$ and $\afe$ of GD-1 members are 0.17\,dex and 0.16\,dex, respectively, and are almost entirely accounted for by the measurement uncertainties (median $\sigma_\feh=0.16$\,dex, $\sigma_\afe=0.14$\,dex, larger than for our typical target since most of the members are faint main-sequence stars).
+% - at high snr feh remains consistent w, but afe spread 3x larger than uncertainties
+% - abundance spreads in light elements
+% - if confirmed w higher-res spec, another window into gc formation
+
+% Stars from both the main stream and the spur satisfy these criteria, indicating that the spur is dynamically associated with GD-1.
+% We explore this connection in more detail in Section~\ref{sec:kinematics}.
+
+
+% Starting with a proper motion selection $-10<\mu_{\phi_1}/\masyr<-5.5$ and $-2.5<\mu_{\phi_2}/\masyr<2$ (corrected for solar reflex motion following \citealt{pwb}), we identify GD-1 candidates among spectroscopically targeted stars (large and small light blue symbols in the top left of Figure~\ref{fig:members}, respectively).
+
+% Spectroscopically targeted stars GD-1 members are presented in dark blue, with circles for the main stream, and stars for the spur.
+
+% Since GD-1 is a retrograde, metal-poor stream, membership selection based on \gaia\ proper motions \citep{gdr2} and de-reddened \pans\ photometry \citep{sfd, ps1} is very efficient \citep[e.g.,][]{pwb}.
+% The left panel of Figure~\ref{fig:members} shows the color-magnitude diagram (CMD) of all targeted stars: those with GD-1-like proper motions are dark blue ($-9<\mu_{\phi_1}/\masyr<-4.5$ and $-1.7<\mu_{\phi_2}/\masyr<1$, corrected for solar reflex motion following \citealt{pwb}), and the filler retrograde stars are light blue.
+% We further consider stars close to the $\textrm{[Fe/H]}=-2.3$, 12.6\,Gyr isochrone at 8.5\,kpc \citep{choi2016} as more likely GD-1 members.
+% The isochrone selection box (dashed pink) is tighter around the GD-1's main sequence where the contrast with respect to the Milky Way field is higher, and more generous at the red giant branch, allowing for uncertainties in the adopted isochrone.
+
+% Most of these likely members have small radial velocity offsets from the GD-1's orbit\footnote{we derived an updated GD-1 orbit in Section~\ref{sec:kinematics}} (Figure~\ref{fig:members}, middle panel).
+% We further select 50 more-likely members with velocity offsets $|\Delta V_r| < 7\,\kms$.
+% Stars from both the main stream and the spur satisfy these criteria, indicating that the spur is dynamically associated with GD-1.
+% We explore this connection in more detail in Section~\ref{sec:kinematics}.
+% Thus selected GD-1 members are predominantly metal-poor (median $\feh=-2.32\pm0.17$), as found by \citet{malhan2019}, so we adopt $-2.8<\feh<-1.9$ as our final criterion for GD-1 membership (Figure~\ref{fig:members}, right).
+% Although wide, this metallicity selection removes only three kinematically identified members for a final sample of 47 most likely GD-1 stars.
+% The full spectroscopic sample with GD-1 membership flags we used is publicly available.\footnote{See \url{https://github.com/abonaca/spur_rv}.}
+% % through Zenodo (\dataset[10.5281/zenodo.1295543]{https://doi.org/10.5281/zenodo.1295543})\footnote{See also \url{https://github.com/abonaca/spur_rv}.}
+
+% GD-1 is a stream with no identified progenitor, so we also use derived chemical abundances to differentiate between a globular cluster and a dwarf galaxy origin.
+% Abundance spreads are typically a signature of a dwarf galaxy origin \citep[e.g.,][]{willman2012}, however, globular clusters observed with the same instrumental setup as used here show abundance spreads comparable to the measurement uncertainty \citep[$\approx0.05-0.1$\,dex,][]{cargile2019}.
+% The standard deviations in $\feh$ and $\afe$ of GD-1 members are 0.17\,dex and 0.16\,dex, respectively, and are almost entirely accounted for by the measurement uncertainties (median $\sigma_\feh=0.16$\,dex, $\sigma_\afe=0.14$\,dex, larger than for our typical target since most of the members are faint main-sequence stars).
+% These data suggest that GD-1 is likely a disrupted globular cluster, as previously inferred from its narrow width \citep[e.g.,][]{grillmair2006} and cold kinematics \citep[e.g.,][]{malhan2019}.
+% More detailed abundances will enable an even more efficient membership selection, and a definitive classification of GD-1's progenitor.
 
 
 \section{GD-1 kinematics}
@@ -174,10 +201,10 @@ More detailed abundances will enable an even more efficient membership selection
 \begin{center}
 \includegraphics[width=0.9\textwidth]{gd1_kinematics.pdf}
 \end{center}
-\caption{Sky positions of spectroscopically identified GD-1 members overplotted on the map of likely stream members (top panel; gray for \citet{koposov2010} data, orange for this work, with light and dark symbols for the main stream and the spur, respectively).
-Both data sets agree that GD-1 has a steep radial velocity gradient (second panel), which puts tight constraints on the stream's orbit (teal).
-Our high-resolution measurements show little dispersion with respect to the best-fit orbit (third panel).
-At a fixed location along the stream, the median radial velocities of the main stream and the spur are consistent at a level of $\lesssim1\,\kms$ (black-outlined symbols, fourth panel).
+\caption{Sky positions of spectroscopically identified GD-1 members overplotted on the map of likely stream members (top; gray for \citet{koposov2010} data, orange circles and red stars for the main stream and the spur data from this paper, respectively).
+Both data sets agree that GD-1 has a steep radial velocity gradient (middle), which puts tight constraints on the stream's orbit (teal).
+% Our high-resolution measurements show little dispersion with respect to the best-fit orbit (third panel).
+At a fixed location along the stream, the median radial velocities of the main stream and the spur are consistent at a level of $\lesssim1\,\kms$ (black-outlined symbols, bottom).
 }
 \label{fig:vr}
 \end{figure*}
@@ -196,7 +223,8 @@ The best-fit orbit has a pericenter at 13.8\,kpc and an apocenter at 21.5\,kpc, 
 In the third and the fourth panel of Figure~\ref{fig:vr} we show the radial velocity offsets from the best-fit GD-1 orbit (teal).
 Overall, our high-resolution measurements show little deviation from the orbital velocity and reveal a kinematically cold stream with a much lower dispersion than previously measured (third panel).
 Accounting for measurement uncertainties, the intrinsic velocity dispersion in GD-1 is smaller than $\lesssim1\,\kms$.
-Repeat measurements of radial velocities with the same instrumental setup indicate that only slightly higher precision of $0.6\,\kms$ can be achieved with MMT/Hectochelle (Caldwell et al., in preparation), so resolving the velocity dispersion in GD-1 may require higher-resolution spectroscopy.
+Repeat measurements of radial velocities with the same instrumental setup indicate that only slightly higher precision of $0.6\,\kms$ can be achieved with MMT/Hectochelle \citep{cargile2019}, so resolving the velocity dispersion in GD-1 may require higher-resolution spectroscopy.
+% (Caldwell et al., in preparation)
 
 % % - consistent w much colder than we're seeing
 % - possible not reaching pure photon limit due to hectochelle systematics
@@ -231,7 +259,7 @@ However, models satisfying a conservative estimate of the relative velocity, $|\
 \includegraphics[width=0.99\textwidth]{skybox.pdf}
 \end{center}
 \caption{Present-day sky positions of objects that induce a spur-and-gap morphology after a close encounter with the GD-1 stream, color-coded by the relative radial velocity between the stream and the spur at $\phi_1=-33.7^\circ$ (top left, from \citealt{bonaca2019a}).
-Solutions that satisfy the measured radial velocity offset, $|\Delta V_r|<1\kms$, are approximately on a great circle (top right), coincident with the distribution of dark matter expected from the disruption of the Sagittarius dwarf galaxy (gray points, bottom, from \citealt{dl2017}).
+Solutions that satisfy the measured radial velocity offset, $|\Delta V_r|<1\kms$, are approximately on a great circle (top right), coincident with the distribution of dark matter expected from the disruption of the Sagittarius dwarf galaxy (bottom, gray points from \citealt{dl2017}).
 }
 \label{fig:skybox}
 \end{figure*}

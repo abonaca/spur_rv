@@ -1843,22 +1843,23 @@ def get_members(t, full=False):
     cmdmem = t['priority']<=cmdlim
     
     #iso = Table.read('/home/ana/data/isochrones/panstarrs/mist_12.6_-1.50.cmd', format='ascii.commented_header', header_start=12)
-    iso = Table.read('/home/ana/data/isochrones/panstarrs/mist_12.0_-2.00.cmd', format='ascii.commented_header', header_start=12)
+    iso = Table.read('/home/ana/data/isochrones/panstarrs/mist_12.6_-2.30.cmd', format='ascii.commented_header', header_start=12)
     phasecut = (iso['phase']>=0) & (iso['phase']<3)
     iso = iso[phasecut]
 
     # distance modulus
     distance_app = 7.8*u.kpc
+    distance_app = 8.5*u.kpc
     dm = 5*np.log10((distance_app.to(u.pc)).value)-5
 
     # main sequence + rgb
-    i_gi = iso['PS_g']-iso['PS_i'] + 0.055
+    i_gi = iso['PS_g']-iso['PS_i'] + 0.1
     i_g = iso['PS_g']+dm
 
-    i_left_narrow = i_gi - 0.45*(i_g/28)**5
-    i_right_narrow = i_gi + 0.55*(i_g/28)**5
-    i_left_narrow = i_gi - 0.4*(i_g/28)**5
-    i_right_narrow = i_gi + 0.5*(i_g/28)**5
+    i_left_narrow = i_gi - 0.47*(i_g/28)**5
+    i_right_narrow = i_gi + 0.57*(i_g/28)**5
+    #i_left_narrow = i_gi - 0.4*(i_g/28)**5
+    #i_right_narrow = i_gi + 0.5*(i_g/28)**5
     poly_narrow = np.hstack([np.array([i_left_narrow, i_g]), np.array([i_right_narrow[::-1], i_g[::-1]])]).T
 
     i_left_wide = i_gi - 0.5*(i_g/28)**3
@@ -1893,7 +1894,7 @@ def get_members(t, full=False):
     fehlims = np.array([-2.8, -1.9])
     fehlims = np.array([-2.8, -2.1])
     fehlims = np.array([-2.55, -1.8])
-    #fehlims = np.array([-2.6, -2.1])
+    #fehlims = np.array([-2.8, -1.8])
     fehmem = (t['FeH']>fehlims[0]) & (t['FeH']<fehlims[1]) #& (t['aFe']>0.2)
     
     # pm selection
