@@ -298,7 +298,7 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     # color by: proper motion projection
     clr = t['dmu22']
     clabel = '$\Delta \mu_{\phi_2,stream-spur}$ [mas yr$^-1$]'
-    clabel = '$\Delta \mu$ [mas yr$^-1$]'
+    clabel = '$\Delta \mu_{\phi_2}$ [mas yr$^-1$]'
     cmap = 'magma_r'
     vmin = -0.4
     vmax = -0.1
@@ -432,10 +432,10 @@ def spectra():
     for k in ['Vrad', 'FeH', 'aFe']:
         print(k, np.median(t['std_{:s}'.format(k)]), np.percentile(t['std_{:s}'.format(k)], [90]))
 
-def members():
+def members(snr=3):
     """"""
     t = Table.read('../data/master_catalog.fits')
-    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3) & np.isfinite(t['aFe'])
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>snr) & np.isfinite(t['aFe'])
     t = t[ind]
 
     mem = get_members(t)
