@@ -1887,7 +1887,7 @@ def get_members(t, full=False):
     # radial velocity selection
     #vrlims = np.array([-20, -1])
     vrlims = np.array([-7,7])
-    #vrlims = np.array([-10,10])
+    #vrlims = np.array([-6,10])
     vrmem = (t['delta_Vrad']>vrlims[0]) & (t['delta_Vrad']<vrlims[1])
     
     # feh selection
@@ -1896,6 +1896,10 @@ def get_members(t, full=False):
     fehlims = np.array([-2.55, -1.8])
     #fehlims = np.array([-2.8, -1.8])
     fehmem = (t['FeH']>fehlims[0]) & (t['FeH']<fehlims[1]) #& (t['aFe']>0.2)
+
+    fehlims = np.array([-2.37, -1.75])
+    #fehlims = np.array([-2.65, -1.75])
+    fehmem = (t['init_FeH']>fehlims[0]) & (t['init_FeH']<fehlims[1]) #& (t['aFe']>0.2)
     
     # pm selection
     pm1lims = np.array([-9,-4.5])

@@ -4,6 +4,7 @@ from matplotlib.legend_handler import HandlerLine2D
 import healpy as hp
 
 wangle = 180*u.deg
+lightsteelblue = '#dde3ef'
 steelblue = '#a2b3d2'
 navyblue = '#294882'
 fuchsia = '#ff3643'
@@ -17,6 +18,9 @@ def plot_membership():
     t = Table.read('../data/master_catalog.fits')
     ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3) & np.isfinite(t['aFe'])
     t = t[ind]
+    
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
+    stream = ~spur
 
     mem_dict = get_members(t, full=True)
     cmdmem = mem_dict['cmdmem']
@@ -25,32 +29,75 @@ def plot_membership():
     fehmem = mem_dict['fehmem']
     vrlims = mem_dict['vrlims']
     fehlims = mem_dict['fehlims']
+    mem = mem_dict['mem']
+    #mem = pmmem & vrmem
     
-    print(np.sum(pmmem), np.sum(pmmem & cmdmem), np.sum(pmmem & cmdmem & vrmem), np.sum(pmmem & cmdmem & vrmem & fehmem), np.sum(mem_dict['mem']))
-    #print(len(t['g'][pmmem & ~cmdmem]))
+    print(np.sum(pmmem & cmdmem), np.sum(pmmem & cmdmem & vrmem), np.sum(mem_dict['mem']))
     
     bvr = np.linspace(-50,50,50)
     
     plt.close()
-    fig, ax = plt.subplots(1, 3, figsize=(15,5), gridspec_kw={'width_ratios': [1,1.7,3.2]})
+    
+    fig = plt.figure(figsize=(11.25,8.1))
+    gs1 = mpl.gridspec.GridSpec(1,3)
+    gs1.update(left=0.08, right=0.975, top=0.95, bottom=0.6, wspace=0.25)
+    
+    gs2 = mpl.gridspec.GridSpec(1,1)
+    gs2.update(left=0.08, right=0.975, top=0.47, bottom=0.08)
+
+    ax0 = fig.add_subplot(gs1[0])
+    ax1 = fig.add_subplot(gs1[1])
+    ax2 = fig.add_subplot(gs1[2])
+    ax3 = fig.add_subplot(gs2[0])
+    ax = [ax0, ax1, ax2, ax3]
+    
+    #fig, ax = plt.subplots(1, 3, figsize=(15,5.5)) #, gridspec_kw={'width_ratios': [1,1.7,3.2]})
     
     plt.sca(ax[0])
-    plt.plot(t['g'] - t['i'], t['g'], 'o', color=steelblue, mec='none', ms=5, alpha=0.5)
-    plt.plot(t['g'][pmmem] - t['i'][pmmem], t['g'][pmmem], 'o', color=navyblue, mec='none', ms=5)
-    #plt.plot(t['g'][pmmem & ~cmdmem] - t['i'][pmmem & ~cmdmem], t['g'][pmmem & ~cmdmem], 'o', color=navyblue, mec='none', ms=5)
+    prelim_mem = pmmem & ~mem
+    plt.plot(t['pm_phi1_cosphi2'], t['pm_phi2'], 'o', color=lightsteelblue, mec='none', ms=3, alpha=1, label='Field stars')
+    plt.plot(t['pm_phi1_cosphi2'][prelim_mem], t['pm_phi2'][prelim_mem], 'o', color=steelblue, mec='none', ms=6, alpha=1, label='Preliminary\nGD-1 members')
+    plt.plot(t['pm_phi1_cosphi2'][mem & stream], t['pm_phi2'][mem & stream], 'o', color=navyblue, mec='none', ms=6, label='GD-1 stream\nmembers')
+    plt.plot(t['pm_phi1_cosphi2'][mem & spur], t['pm_phi2'][mem & spur], '*', color=navyblue, mec='none', ms=10, label='GD-1 spur\nmembers')
+    
+    pm = mpl.patches.Polygon(mem_dict['pmbox'], facecolor='none', edgecolor=fuchsia, lw=3, ls='--', zorder=2)
+    plt.gca().add_artist(pm)
+    
+    #plt.legend(fontsize='small', loc=4, handlelength=0.75)
+    plt.xlim(-12,2)
+    plt.ylim(-5,5)
+    plt.xlabel('$\mu_{\phi_1}$ [mas yr$^{-1}$]')
+    plt.ylabel('$\mu_{\phi_2}$ [mas yr$^{-1}$]')
+    plt.title('Proper motion', fontsize='medium')
+    plt.text(0.1, 0.9, '{:2d}'.format(np.sum(pmmem)), transform=plt.gca().transAxes, ha='left')
+    
+    plt.sca(ax[1])
+    prelim_mem = pmmem & ~mem
+    plt.plot(t['g'] - t['i'], t['g'], 'o', color=lightsteelblue, mec='none', ms=3, alpha=1)
+    plt.plot(t['g'][prelim_mem] - t['i'][prelim_mem], t['g'][prelim_mem], 'o', color=steelblue, mec='none', ms=6, alpha=1)
+    #plt.plot(t['g'][pmmem & stream] - t['i'][pmmem & stream], t['g'][pmmem & stream], 'o', color=navyblue, mec='none', ms=5)
+    #plt.plot(t['g'][pmmem & spur] - t['i'][pmmem & spur], t['g'][pmmem & spur], '*', color=navyblue, mec='none', ms=9)
+    
+    plt.plot(t['g'][mem & stream] - t['i'][mem & stream], t['g'][mem & stream], 'o', color=navyblue, mec='none', ms=6)
+    plt.plot(t['g'][mem & spur] - t['i'][mem & spur], t['g'][mem & spur], '*', color=navyblue, mec='none', ms=10)
+    #plt.plot(t['g'][mem] - t['i'][mem], t['g'][mem], 'o', color=navyblue, mec='none', ms=5)
     pm = mpl.patches.Polygon(mem_dict['cmdbox'], facecolor='none', edgecolor=fuchsia, lw=3, ls='--', zorder=2)
     plt.gca().add_artist(pm)
     
     plt.xlim(-0.5,1.5)
+    plt.xlim(-0.1,1.1)
     plt.ylim(20.6,14.5)
     plt.xlabel('(g - i)$_0$ [mag]')
     plt.ylabel('g$_0$ [mag]')
-    plt.title('Proper motion', fontsize='medium')
-    plt.text(0.9, 0.9, '{:2d}'.format(np.sum(cmdmem & pmmem)), transform=plt.gca().transAxes, ha='right')
+    plt.title('+ Isochrone', fontsize='medium')
+    plt.text(0.1, 0.9, '{:2d}'.format(np.sum(cmdmem & pmmem)), transform=plt.gca().transAxes, ha='left')
     
-    plt.sca(ax[1])
-    plt.hist(t['delta_Vrad'][~cmdmem], bins=bvr, histtype='stepfilled', color=steelblue, alpha=0.5, density=False)
-    plt.hist(t['delta_Vrad'][cmdmem], bins=bvr, histtype='stepfilled', color=navyblue, density=False)
+    plt.sca(ax[2])
+    prelim_mem = pmmem & cmdmem & ~mem
+    plt.hist(t['delta_Vrad'][~cmdmem & ~pmmem], bins=bvr, histtype='stepfilled', color=lightsteelblue, alpha=1, density=False)
+    plt.hist(t['delta_Vrad'][prelim_mem], bins=bvr, histtype='stepfilled', color=steelblue, density=False)
+    #plt.hist(t['delta_Vrad'][pmmem & cmdmem], bins=bvr, histtype='stepfilled', color=navyblue, density=False)
+    plt.hist(t['delta_Vrad'][mem], bins=bvr, histtype='stepfilled', color=navyblue, density=False)
     
     for vrlim in vrlims:
         plt.axvline(vrlim, ls='--', lw=3, color=fuchsia)
@@ -58,26 +105,35 @@ def plot_membership():
     plt.xlim(-50,50)
     plt.ylabel('Number')
     plt.xlabel('$V_r$ - $V_{r,orbit}$ [km s$^{-1}$]')
-    plt.title('+ Isochrone', fontsize='medium')
-    plt.text(0.94, 0.9, '{:2d}'.format(np.sum(cmdmem & vrmem)), transform=plt.gca().transAxes, ha='right')
+    plt.title('+ Radial velocity', fontsize='medium')
+    plt.text(0.1, 0.9, '{:2d}'.format(np.sum(pmmem & cmdmem & vrmem)), transform=plt.gca().transAxes, ha='left')
     
-    plt.sca(ax[2])
-    plt.plot(t['FeH'][cmdmem & vrmem], t['aFe'][cmdmem & vrmem], 'o', color=navyblue, mec='none', ms=6, label='GD-1 members', zorder=1)
-    plt.plot(t['FeH'][~(cmdmem & vrmem)], t['aFe'][~(cmdmem & vrmem)], 'o', color=steelblue, mec='none', alpha=0.5, ms=6, label='Field stars', zorder=0)
+    plt.sca(ax[3])
+    prelim_mem = pmmem & cmdmem & vrmem & ~mem
+    #plt.plot(t['FeH'][pmmem & cmdmem & vrmem], t['aFe'][pmmem & cmdmem & vrmem], 'o', color=navyblue, mec='none', ms=6, label='GD-1 members', zorder=1)
+    #plt.plot(t['FeH'][mem], t['aFe'][mem], 'o', color=navyblue, mec='none', ms=6, label='GD-1 members', zorder=1)
+
+    plt.plot(t['init_FeH'][~(cmdmem & vrmem)], t['aFe'][~(cmdmem & vrmem)], 'o', color=lightsteelblue, mec='none', alpha=1, ms=4, label='Field stars', zorder=0)
+    plt.plot(t['init_FeH'][prelim_mem], t['aFe'][prelim_mem], 'o', color=steelblue, mec='none', alpha=1, ms=7, zorder=0, label='Preliminary GD-1 members')
+    plt.plot(t['init_FeH'][mem & stream], t['aFe'][mem & stream], 'o', color=navyblue, mec='none', ms=7, label='GD-1 stream members', zorder=1)
+    plt.plot(t['init_FeH'][mem & spur], t['aFe'][mem & spur], '*', color=navyblue, mec='none', ms=12, label='GD-1 spur members', zorder=1)
+    plt.errorbar(t['init_FeH'][mem], t['aFe'][mem], yerr=t['std_init_FeH'][mem], xerr=t['std_aFe'][mem], fmt='none', color=navyblue, label='', zorder=0, alpha=0.5, lw=0.7)
+
     
     for fehlim in fehlims:
         plt.axvline(fehlim, ls='--', lw=3, color=fuchsia, label='', zorder=2)
     
-    plt.text(0.97, 0.9, '{:2d}'.format(np.sum(cmdmem & vrmem & fehmem)), transform=plt.gca().transAxes, ha='right')
-    plt.legend(loc=4, frameon=True, handlelength=1, fontsize='small', markerscale=1.3)
+    #plt.text(0.97, 0.9, '{:2d}'.format(np.sum(pmmem & cmdmem & vrmem & fehmem)), transform=plt.gca().transAxes, ha='right')
+    plt.text(0.03, 0.9, '{:2d}'.format(np.sum(pmmem & cmdmem & vrmem & fehmem)), transform=plt.gca().transAxes, ha='left')
+    plt.legend(loc=1, frameon=True, handlelength=1, fontsize='medium', markerscale=1.2)
     
     plt.xlim(-3.2,0.1)
     plt.ylim(-0.2,0.6)
     plt.ylabel('[$\\alpha$/Fe]')
-    plt.xlabel('[Fe/H]')
-    plt.title('+ Radial velocity selection', fontsize='medium')
+    plt.xlabel('[Fe/H]$_{init}$')
+    plt.title('+ Metallicity selection', fontsize='medium')
 
-    plt.tight_layout()
+    #plt.tight_layout(w_pad=0.1)
     plt.savefig('../paper/members.pdf')
 
 def dvr():
@@ -88,8 +144,6 @@ def dvr():
     t = t[ind]
     mem = get_members(t)
     t = t[mem]
-    #ind = (t['priority']<3) & (t['delta_Vrad']>-20) & (t['delta_Vrad']<-1) #& (t['FeH']<-2)
-    #t = t[ind]
     
     spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
     stream = ~spur
@@ -101,73 +155,60 @@ def dvr():
     
     labels = ['Bonaca et al. (2020)', '', 'Koposov et al. (2010)']
     colors = ['darkorange', 'orangered', '0.8']
-    colors = ['darkorange', 'red', '0.7']
+    colors = ['dodgerblue', 'orangered', '0.7']
+    ecolors = ['navy', 'red', '0.7']
+    
+    colors = ['#3dd0e8', '#ff8d3e', '0.7']
+    #colors = ['#3dd0e8', '#f84600', '0.7']
+    ecolors = ['#3d7be8', '#f82b00', '0.7']
+    ecolors = ['#3d7be8', '#f84600', '0.7']
     markers = ['o', '*', 'o']
     sizes = [10, 18, 8]
-    msizes = [6.5, 10, 6]
-    ms = 6
+    msizes = [6.5, 10, 4]
+    #msizes = [10, 18, 4]
+    ms = 4
+    mew = 1.5
     
     tk = Table.read('../data/koposov_vr.dat', format='ascii.commented_header')
 
     g = Table(fits.getdata('/home/ana/projects/legacy/GD1-DR2/output/gd1_members.fits'))
-    
-    #q = np.load('../data/poly_vr_median.npy')
-    #qpoly = np.poly1d(q)
-    
+
     pkl = pickle.load(open('../data/orbit_vr_interp.pkl', 'rb'))
     qpoly = pkl['f']
     xphi = np.linspace(-50,-10,100)
     yvr = qpoly(xphi)
-    #print(qpoly)
 
     plt.close()
     fig, ax = plt.subplots(3,1,figsize=(10,7), sharex=True, gridspec_kw=dict(height_ratios=[1,1.6,1.4]))
     
     plt.sca(ax[0])
-    #plt.plot(tk['phi1'], tk['phi2'], 'o', color='w', mec='none', ms=8, label='')
-    p1, = plt.plot(tk['phi1'], tk['phi2'], 'o', color=colors[2], alpha=1, label=labels[2], ms=ms)
+    p1, = plt.plot(tk['phi1'], tk['phi2'], 'o', color=colors[2], alpha=1, label=labels[2], ms=ms+1.5)
     
     plt.sca(ax[1])
-    plt.plot(xphi, yvr, '-', color='teal', lw=2, alpha=0.7)
-    plt.errorbar(tk['phi1'], tk['vr'], yerr=tk['err'], fmt='o', color=colors[2], lw=2, alpha=1, label='', ms=ms)
-    #plt.plot(tk['phi1'], tk['vr'], 'o', color='w', ms=8, mec='none', label='')
-    #plt.plot(tk['phi1'], tk['vr'], 'o', color=colors[2], ms=8, alpha=1, mec='none', label='')
-    
-    #plt.sca(ax[2])
-    #plt.axhline(0, color='teal', lw=2, alpha=0.7, zorder=0)
-    ##plt.fill_between(np.linspace(-60,-20,10), -5, 5, color='k', alpha=0.2)
+    plt.plot(xphi, yvr, '-', color='k', lw=2, alpha=0.7)
+    plt.errorbar(tk['phi1'], tk['vr'], yerr=tk['err'], fmt='o', color=colors[2], lw=1.5, alpha=1, label='', ms=ms)
     
     kvr = qpoly(tk['phi1'])
-    #plt.errorbar(tk['phi1'], tk['vr'] - kvr, yerr=tk['err'], fmt='o', color=colors[2], lw=2, alpha=1, label='', zorder=0)
-    ##plt.plot(tk['phi1'], tk['vr'] - kvr, 'o', color='w', ms=8, mec='none', label='')
-    ##plt.plot(tk['phi1'], tk['vr'] - kvr, 'o', color=colors[2], ms=8, alpha=1, mec='none', label='')
     
     plt.sca(ax[2])
-    plt.axhline(0, color='teal', lw=2, alpha=0.7, zorder=0)
-    plt.errorbar(tk['phi1'], tk['vr'] - kvr, yerr=tk['err'], fmt='o', color=colors[2], lw=2, alpha=1, label='', zorder=0, ms=ms)
-    #plt.fill_between(np.linspace(-60,-20,10), -5, 5, color='k', alpha=0.2)
+    plt.axhline(0, color='k', lw=2, alpha=0.7, zorder=0)
+    plt.errorbar(tk['phi1'], tk['vr'] - kvr, yerr=tk['err'], fmt='o', color=colors[2], lw=1.5, alpha=1, label='', zorder=0, ms=ms)
     
     p2 = []
     
     for e, ind in enumerate([stream, spur]):
         plt.sca(ax[0])
-        p_, = plt.plot(t['phi1'][ind], t['phi2'][ind], marker=markers[e], ls='none', color=colors[e], label=labels[e], ms=msizes[e])
+        p_, = plt.plot(t['phi1'][ind], t['phi2'][ind], marker=markers[e], ls='none', color=colors[e], label=labels[e], ms=msizes[e], mec=ecolors[e], mew=mew)
         p2 += [p_]
         
         plt.sca(ax[1])
-        plt.errorbar(t['phi1'][ind], t['Vrad'][ind], yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), color=colors[e], fmt=markers[e], label='', ms=msizes[e])
-        #plt.plot(t['phi1'][ind], t['Vrad'][ind], 'o', color=colors[e], ms=8, label=labels[e])
+        plt.errorbar(t['phi1'][ind], t['Vrad'][ind], yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), color=ecolors[e], mfc=colors[e], fmt=markers[e], label='', ms=msizes[e], mec=ecolors[e], mew=mew)
         
         plt.sca(ax[2])
         vr = qpoly(t['phi1'][ind])
         
-        #plt.plot(t['phi1'][ind], t['Vrad'][ind] - vr, 'o', color=colors[e], ms=8)
-        plt.errorbar(t['phi1'][ind], t['Vrad'][ind] - vr, yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt=markers[e], color=colors[e], zorder=0, lw=2, ms=msizes[e])
-        
-        #plt.sca(ax[3])
-        ##plt.plot(t['phi1'][ind], t['Vrad'][ind] - vr, 'o', color=colors[e], ms=3, alpha=0.3)
-        #plt.errorbar(t['phi1'][ind], t['Vrad'][ind] - vr, yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt='o', color=colors[e], zorder=0, lw=2, alpha=1)
-        
+        plt.errorbar(t['phi1'][ind], t['Vrad'][ind] - vr, yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt=markers[e], color=ecolors[e], mfc=colors[e], zorder=0, lw=2, ms=msizes[e], mec=ecolors[e], mew=mew)
+    
     # medians
     phi1_med = np.zeros(8)
     vr_med = np.zeros(8)
@@ -199,21 +240,15 @@ def dvr():
     plt.ylabel('$\phi_2$ [deg]')
     
     plt.legend([p1, (p2[0], p2[1])],[labels[2], labels[0]], handler_map={p2[0]:HandlerLine2D(numpoints=2), p2[1]:HandlerLine2D(numpoints=1)}, ncol=2, frameon=False, handlelength=2.5, loc=3, fontsize='small', numpoints=1)
-    #plt.legend(ncol=2, frameon=False, handlelength=0.6, loc=3, fontsize='small')
     
     plt.sca(ax[1])
     plt.ylim(-140,49)
     plt.ylabel('$V_r$ [km s$^{-1}$]')
     
-    #plt.sca(ax[2])
-    #plt.ylim(-35, 35)
-    #plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
-
     plt.sca(ax[2])
     plt.ylim(-9,9)
     plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
     plt.xlabel('$\phi_1$ [deg]')
-    
     
     plt.tight_layout(h_pad=0)
     plt.savefig('../paper/gd1_kinematics.pdf')
@@ -285,6 +320,7 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     plt.sca(ax[0][1])
     
     ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
+    #ind = (t['dvr1']>0.7) & (t['dvr1']<2.7) & (np.abs(t['dvr2'])<1)
     ind_bound = ekin<epot
     vsub = np.sqrt(t['vxsub']**2 + t['vysub']**2)
     t = t[ind & ind_bound]
@@ -443,11 +479,11 @@ def members(snr=3):
     t = t[mem]
     
     print('chemistry')
-    for k in ['FeH', 'aFe']:
+    for k in ['FeH', 'init_FeH', 'aFe']:
         print(k, np.median(t['{:s}'.format(k)]), np.std(t['{:s}'.format(k)]))
     
     print('uncertainties')
-    for k in ['Vrad', 'FeH', 'aFe']:
+    for k in ['Vrad', 'FeH', 'init_FeH', 'aFe']:
         print(k, np.median(t['std_{:s}'.format(k)]), np.percentile(t['std_{:s}'.format(k)], [90]))
 
 def publish_catalog():
@@ -500,4 +536,59 @@ def occupation(nside=64):
     
     print(n0/ntot, ndvr/ntot, ndvr/n0)
     print(n0*area, ndvr*area)
+
+def afe_spread():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3) & np.isfinite(t['aFe'])
+    t = t[ind]
+
+    mem = get_members(t)
+    t = t[mem]
     
+    plt.close()
+    fig, ax = plt.subplots(1,3,figsize=(15,5))
+    
+    plt.sca(ax[0])
+    plt.plot(t['logg'], t['aFe'], 'ko')
+    plt.xlabel('log g')
+    plt.ylabel('[$\\alpha$/Fe]')
+    
+    plt.sca(ax[1])
+    plt.plot(t['Teff'], t['aFe'], 'ko')
+    plt.xlabel('$T_{eff}$ [K]')
+    plt.ylabel('[$\\alpha$/Fe]')
+    
+    plt.sca(ax[2])
+    plt.scatter(t['g'] - t['i'], t['g'], c=t['aFe'], cmap='gray', vmax=0.7)
+    #plt.scatter(t['g'] - t['i'], t['g'], c=t['FeH'], cmap='gray')
+    
+    plt.xlim(0.1,0.7)
+    plt.ylim(21,16)
+    plt.xlabel('g - i')
+    plt.ylabel('g')
+    
+    plt.tight_layout()
+    plt.savefig('../plots/afe_correlations.png')
+
+def init_abundances():
+    """"""
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3) & np.isfinite(t['aFe'])
+    t = t[ind]
+
+    mem = get_members(t)
+    t = t[mem]
+    
+    plt.close()
+    fig, ax = plt.subplots(1,1,figsize=(10,5))
+    
+    plt.plot(t['FeH'], t['aFe'], 'ko')
+    plt.plot(t['init_FeH'], t['aFe'], 'wo', mec='k')
+    print(t.colnames)
+    
+    dfeh = t['init_FeH'] - t['FeH']
+    print(dfeh, np.median(dfeh), np.median(t['FeH']), np.median(t['init_FeH']), np.std(t['FeH']), np.std(t['init_FeH']))
+    
+    plt.tight_layout()
+

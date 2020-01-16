@@ -34,7 +34,7 @@
 \begin{document}\sloppy\sloppypar\raggedbottom\frenchspacing % trust me
 
 % \title{The GD-1 stellar stream and its comoving spur lead the way to\\dynamically locating hidden objects in the Milky Way}
-\title{The GD-1 stellar stream and its comoving spur localize a hidden object in the Milky Way}
+\title{High-resolution spectroscopy of the GD-1 stellar stream\\localizes the perturber near the orbital plane of Sagittarius}
 
 \correspondingauthor{Ana~Bonaca}
 \email{ana.bonaca@cfa.harvard.edu}
@@ -72,12 +72,14 @@
 \begin{abstract}\noindent % trust me
 The $100^\circ$-long thin stellar stream in the Milky Way halo, GD-1, has an ensemble of features that may be due to dynamical interactions.
 Using high-resolution MMT/Hectochelle spectroscopy we show that a spur of GD-1-like stars outside of the main stream are kinematically and chemically consistent with the main stream.
+% we show that stars that form a spur of GD-1,  outside of the main stream, are kinematically and chemically consistent
 In the spur, as in the main stream, GD-1 has a low intrinsic radial velocity dispersion, $\sigma_{V_r}\lesssim1\,\kms$, is metal-poor, $\feh\approx-2.3$, with little \feh\ spread and some variation in \afe\ abundances, which point to a common globular cluster progenitor.
 % In the spur, as in the main stream, GD-1 has a low intrinsic radial velocity dispersion, $\sigma_{V_r}\lesssim1\,\kms$, is metal-poor, $\feh\approx-2.3$, and has little intrinsic spread in the \feh\ and \afe\ abundances, which point to a common globular cluster progenitor.
 At a fixed location along the stream, the median radial velocity offset between the spur and the main stream is smaller than $0.5\,\kms$, comparable to the measurement uncertainty.
 A flyby of a massive, compact object can change orbits of stars in a stellar stream and produce features like the spur observed in GD-1.
-In this scenario, the radial velocity of the spur relative to the stream constrains the orbit of the perturber and its present on-sky position to $\approx5,000\,\deg^2$.
-For GD-1, the family of acceptable perturber orbits overlaps the stellar and dark-matter debris of the Sagittarius dwarf galaxy in present-day position and velocity.
+In this scenario, the radial velocity of the GD-1 spur relative to the stream constrains the orbit of the perturber and its current on-sky position to $\approx5,000\,\deg^2$.
+%  which is concentrated in positions occupied by the orbit of the Sgr Stream.
+The family of acceptable perturber orbits overlaps the stellar and dark-matter debris of the Sagittarius dwarf galaxy in present-day position and velocity.
 This suggests that GD-1 may have been perturbed by a globular cluster or an extremely compact dark-matter subhalo formerly associated with Sagittarius.
 \end{abstract}
 
@@ -131,7 +133,7 @@ Using the \gaia--\pans\ cross-matched catalog, we selected retrograde stars as s
 On average, we dedicated $\gtrsim170$ fibers to science targets per field, for a total of 1409 science spectra.
 Up to 40 of the remaining fibers were used to estimate the sky emission.
 We used the \texttt{RV31} filter covering the Mg~b triplet and observed each field for 2.25~hours (except for stream field at $\phi_1\approx-34^\circ$ which was observed for 2~hours due to scheduling constraints).
-With $2\times3$ spectral and spatial binning of the CCD pixels, we achieved a signal-to-noise ratio $S/N\approx2$ at $g=20$ and an effective resolution $R\approx32,000$.
+With $2\times3$ spatial and spectral binning of the CCD pixels, we achieved a signal-to-noise ratio $S/N\approx2$ at $g=20$ and an effective resolution $R\approx32,000$.
 
 The 2D spectra were reduced by \package{HSRED}~v2.1\footnote{\url{https://bitbucket.org/saotdc/hsred/}}.
 This pipeline flat-fields, wavelength-calibrates with respect to ThAr lamp spectra, extracts 1D spectra and subtracts the sky emission.
@@ -153,16 +155,16 @@ Following \citet{pwb}, we start with a generous selection in proper motions (cor
 We further consider stars close to the $\textrm{[Fe/H]}=-2.3$, 12.6\,Gyr isochrone at 8.5\,kpc \citep{choi2016} as more likely GD-1 members (top middle).
 The isochrone selection box is tighter around the GD-1's main sequence where the contrast with respect to the Milky Way field is higher, and wider along the red giant branch.
 Next, we require GD-1 members to have a small radial velocity offset from the GD-1's orbit\footnote{we derived an updated GD-1 orbit in Section~\ref{sec:kinematics}}, $|\Delta V_r| < 7\,\kms$ (top right).
-Finally, we select stars with $-2.55<\feh<-1.8$ for a final sample of 45 most likely GD-1 stars (Figure~\ref{fig:members}, bottom).
+Finally, we select stars with $-2.37<\feh_{\rm init}<-1.75$ for a final sample of 43 most likely GD-1 stars (Figure~\ref{fig:members}, bottom).
 In the interest of producing a pure sample, our spectroscopic selection criteria are rather stringent.
 Future analyses may improve the completeness of this sample using probabilistic membership approaches.
 The full spectroscopic sample with GD-1 membership flags we developed is publicly available.\footnote{See \url{https://github.com/abonaca/spur_rv}.}
 
 GD-1 stars in the main stream and in the spur have similar radial velocities and chemical abundances, demonstrating that the spur is indeed a part of GD-1.
-The stellar population in GD-1 is metal-poor, $\feh=-2.3\pm0.1$, and alpha-enhanced, $\afe=0.4\pm0.2$.
-Abundance spreads in both \feh\ and \afe\ can be accounted for by the measurement uncertainties in the overall sample, but for a subset of high signal-to-noise stars ($S/N>10$), the variation in \afe\ is three times larger than the measurement uncertainty.
+The stellar population in GD-1 is metal-poor, $\feh=-2.3\pm0.1$ (the initial metallicity, show in Figure~\ref{fig:members}, is slightly higher due to diffusion, $\feh_{\rm init}=-2.1\pm0.2$), and alpha-enhanced, $\afe=0.4\pm0.2$.
+Abundance spreads in both \feh\ and \afe\ can be accounted for by the measurement uncertainties in the overall sample, but for a subset of high signal-to-noise stars ($S/N>10$), the variation in \afe\ is two times larger than the measurement uncertainty.
 Variations in the abundance of light elements and little \feh\ spread are commonly observed in globular clusters \citep{gratton2019}.
-These abundance trends, combined with a low velocity dispersion (Section~\ref{sec:kinematics}), indicate that GD-1 stream is a disrupted globular cluster.
+These abundance trends, combined with a low velocity dispersion (Section~\ref{sec:kinematics}), suggest that GD-1 stream is a disrupted globular cluster.
 
 % The standard deviations in $\feh$ and $\afe$ of GD-1 members are 0.17\,dex and 0.16\,dex, respectively, and are almost entirely accounted for by the measurement uncertainties (median $\sigma_\feh=0.16$\,dex, $\sigma_\afe=0.14$\,dex, larger than for our typical target since most of the members are faint main-sequence stars).
 % - at high snr feh remains consistent w, but afe spread 3x larger than uncertainties
@@ -205,8 +207,8 @@ These abundance trends, combined with a low velocity dispersion (Section~\ref{se
 \begin{center}
 \includegraphics[width=0.9\textwidth]{gd1_kinematics.pdf}
 \end{center}
-\caption{Sky positions of spectroscopically identified GD-1 members overplotted on the map of likely stream members (top; gray for \citet{koposov2010} data, orange circles and red stars for the main stream and the spur data from this paper, respectively).
-Both data sets agree that GD-1 has a steep radial velocity gradient (middle), which puts tight constraints on the stream's orbit (teal).
+\caption{Sky positions of spectroscopically identified GD-1 members overplotted on the map of likely stream members (top; gray for \citet{koposov2010} data, blue circles and orange stars for the main stream and the spur data from this paper, respectively).
+Both data sets agree that GD-1 has a steep radial velocity gradient (middle), which puts tight constraints on the stream's orbit (black).
 % Our high-resolution measurements show little dispersion with respect to the best-fit orbit (third panel).
 At a fixed location along the stream, the median radial velocities of the main stream and the spur are consistent at a level of $\lesssim1\,\kms$ (black-outlined symbols, bottom).
 }
@@ -214,17 +216,17 @@ At a fixed location along the stream, the median radial velocities of the main s
 \end{figure*}
 
 We summarize radial velocity structure of the GD-1 stream in Figure~\ref{fig:vr}.
-The top panel shows the on-sky distribution of likely GD-1 members identified using \gaia\ proper motions \citep[small points,][]{pwb}, and highlights stars with a measured radial velocity \citep[orange / red for this work, gray for literature data from][]{koposov2010}.
+The top panel shows the on-sky distribution of likely GD-1 members identified using \gaia\ proper motions \citep[small points,][]{pwb}, and highlights stars with a measured radial velocity \citep[blue / orange for this work, gray for literature data from][]{koposov2010}.
 The second panel shows radial velocity as a function of the $\phi_1$ stream coordinate.
-Our data include the first radial velocity measurements in the GD-1 spur (red stars), and they are consistent with radial velocities in the main GD-1 stream (orange circles).
+Our data include the first radial velocity measurements in the GD-1 spur (orange stars), and they are consistent with radial velocities in the main GD-1 stream (blue circles).
 Our measurements show a strong radial velocity gradient along the stream that is largely consistent with, but somewhat offset from the literature measurements (obtained at a lower-resolution).
 We next search for orbits that fit the updated sample of GD-1 radial velocities.
 
 We adopted the GD-1 orbit-fitting procedure from \citet{pwb}, including their fixed Milky Way model similar to \citet{bovy2015} and their compilation of 6D stream data which we augmented with more precise radial velocities from this work.
-The radial velocity gradient of the best-fit orbit is shown with a teal line in the second panel of Figure~\ref{fig:vr}.
+The radial velocity gradient of the best-fit orbit is shown with a black line in the second panel of Figure~\ref{fig:vr}.
 The best-fit orbit has a pericenter at 13.8\,kpc and an apocenter at 21.5\,kpc, making the updated orbital solution slightly more circular, but otherwise similar to the orbit derived in \citet{pwb}.
 
-In the third panel of Figure~\ref{fig:vr} we show the radial velocity offsets from the best-fit GD-1 orbit (teal).
+In the third panel of Figure~\ref{fig:vr} we show the radial velocity offsets from the best-fit GD-1 orbit (black).
 Overall, our high-resolution measurements show little deviation from the orbital velocity and reveal a kinematically cold stream with a much lower dispersion than previously measured.
 Accounting for measurement uncertainties, the intrinsic velocity dispersion in GD-1 is smaller than $\lesssim1\,\kms$.
 Repeat measurements of radial velocities with the same instrumental setup indicate that only slightly higher precision of $0.6\,\kms$ can be achieved with MMT/Hectochelle \citep{cargile2019}, so resolving the velocity dispersion in GD-1 may require higher-resolution spectroscopy.
@@ -238,14 +240,14 @@ Repeat measurements of radial velocities with the same instrumental setup indica
 
 To quantify the relative motion between the stream and the spur, we compare the median radial velocity of GD-1 members observed in individual Hectochelle fields (large symbols with a black outline, the errorbars are the standard deviation).
 At two locations where we observed the main stream and the spur in parallel ($\phi_1=-33.7^\circ, -30^\circ$), the relative radial velocity is smaller than $0.5\,\kms$, comparable to the measurement uncertainty.
-To a high degree, the GD-1 spur is comoving with the stream, which puts strong constraints on its formation scenarios.
+To a high degree, the GD-1 spur is comoving with the stream, which puts strong constraints on formation scenarios.
 
 
 \begin{figure*}
 \begin{center}
 \includegraphics[width=0.99\textwidth]{skybox.pdf}
 \end{center}
-\caption{Present-day sky positions of objects that induce a spur-and-gap morphology after a close encounter with the GD-1 stream, color-coded by the relative radial velocity between the stream and the spur at $\phi_1=-33.7^\circ$ (top left, from \citealt{bonaca2019a}).
+\caption{Present-day sky positions of objects sampled from a distribution that induces a spur-and-gap morphology after a close encounter with the GD-1 stream, color-coded by the relative radial velocity, $\Delta V_r$, between the stream and the spur at $\phi_1=-33.7^\circ$ (top left, from \citealt{bonaca2019a}).
 Solutions that satisfy the measured radial velocity offset, $|\Delta V_r|<1\kms$, are approximately on a great circle (top right), coincident with the distribution of dark matter expected from the disruption of the Sagittarius dwarf galaxy (bottom, gray points from \citealt{dl2017}).
 }
 \label{fig:skybox}
@@ -261,14 +263,14 @@ The relative radial velocity between the stream and the spur is small, $\Delta V
 We conclude with a discussion of implications that a comoving spur places on its formation mechanism and an outlook for dynamical inferences about the structure of the Milky Way if features like the GD-1 spur are common in other streams.
 
 \citet{bonaca2019a} showed that a stream can develop the spur-and-gap morphology similar to that observed in GD-1 following an encounter with a massive object, and predicted that properties of the encounter can be further constrained with kinematic data.
-We revisit perturbed stream models from \citet{bonaca2019a} that are a good quantitative match for the GD-1 morphology, and explore implications of the observed GD-1 kinematics in the context of an encounter scenario.
+We revisit perturbed stream models from \citet{bonaca2019a} that were sampled to provide a good quantitative match for the GD-1 morphology, and explore implications of the observed GD-1 kinematics in the context of an encounter scenario.
 A spur comoving with the stream prefers models of a closer encounter with a less massive and more compact object than inferred from the stream morphology alone, while the range of allowed impact times and the perturber's total velocity remain similar.
 The most substantial improvement that the kinematic data provide is in constraining the perturber's orbit, which determines its present-day location.
 In the top left of Figure~\ref{fig:skybox} we show the present-day sky positions of perturber models allowed by stream morphology, color-coded by the relative stream--spur radial velocity, $\Delta V_r(\phi_1=-33.7^\circ)$.
 Morphology alone allows for a perturber on a variety of orbits, that result in present-day positions distributed across $\approx30,000\,\deg$.
 However, models satisfying a conservative estimate of the relative velocity, $|\Delta V_r|<1\,\kms$, are spatially constrained to $\approx5,000\,\deg^2$ (Figure~\ref{fig:skybox}, top right).
 
-Relative radial velocity measured between the GD-1 stream and its spur improves the localization of the GD-1's perturber by a factor of six, but the resulting area is still too wide for direct follow-up searches.
+The relative radial velocity measured between the GD-1 stream and its spur improves the localization of the GD-1's perturber by a factor of six, but the resulting area is still too wide for direct follow-up searches.
 Better localization is possible if we can measure the radial velocity gradient along the spur, generically expected in interaction models \citep{bonaca2019a}.
 Radial velocities we measured in the GD-1 spur show a tentative gradient between $\phi_1=-35^\circ$ and $-31^\circ$ (Figure~\ref{fig:vr}, bottom), however, higher precision is required to fully resolve the gradient.
 Further improvements in the sky localization of the pertuber are possible by measuring the relative proper motion between the GD-1 stream and the spur (color-coding in the right panels of Figure~\ref{fig:skybox}).
@@ -299,17 +301,14 @@ Overall, such processes impart large velocity kicks, so their role in GD-1's his
 % Excitingly, GD-1 is only one of several streams that display peculiar morphology \citep[e.g.,][]{pwb, bonaca2019b, bonaca2020}.
 % Our results imply that if these features are a result of an impact to the stream, precise kinematics of the perturbed region will pinpoint the perpetrator.
 
-We have shown that compact objects can be located in the Milky Way halo by dynamical modeling of their impact on cold stellar streams like GD-1.
+We have shown that compact objects can be located in the Milky Way halo by dynamical modeling their impact on cold stellar streams like GD-1.
 The prospect of subhalo localization would revolutionize the study of dark matter in the Milky Way.
 Instead of inferring the nature of dark matter through the total abundance \citep[e.g.,][]{carlberg2013} or the mass function of dark-matter subhalos \citep[e.g.,][]{banik2019}, multi-wavelength observations of individual subhalo candidates would enable direct tests of different dark matter models \citep[e.g.,][]{daylan2016}, and add dark matter to the domain of multi-messenger astronomy.
 
-
+\vspace{0.5cm}
 It is a pleasure to thank Marion Dierickx for providing Sagittarius models, and Daniel Eisenstein, Doug Finkbeiner, Lars Hernquist, Sean Moran, and Hans-Walter Rix for valuable discussions.
-
 Observations reported here were obtained at the MMT Observatory, a joint facility of the Smithsonian Institution and the University of Arizona.
-
 This project was developed in part at the 2019 Santa Barbara Gaia Sprint, hosted by the Kavli Institute for Theoretical Physics at the University of California, Santa Barbara.
-
 This research was supported in part at KITP by the Heising-Simons Foundation and the National Science Foundation under Grant No. NSF PHY-1748958.
 
 \facility{MMT(Hectochelle)}
