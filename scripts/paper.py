@@ -592,3 +592,266 @@ def init_abundances():
     
     plt.tight_layout()
 
+
+##########
+# Response
+
+def reformat_lamost():
+    """"""
+    
+    tl = Table.read('../data/lamost_gd1.txt', format='ascii')
+    tl.pprint()
+    
+    coord_list = [tl['ID'][i][1:12] + ' ' + tl['ID'][i][12:] for i in range(len(tl))]
+
+    c = coord.SkyCoord(coord_list, unit=(u.hourangle, u.deg))
+    cg = c.transform_to(gc.GD1)
+    
+    plt.close()
+    plt.figure()
+    
+    plt.plot(cg.phi1, tl['vLOS'], 'ko')
+    
+    tout = Table([cg.phi1, cg.phi2, tl['vLOS'], tl['e_vLOS']], names=('phi1', 'phi2', 'vr', 'err'))
+    tout.pprint()
+    tout.write('../data/lamost_vr.fits', overwrite=True)
+
+def dvr_lamost():
+    """"""
+
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3)
+    t = t[ind]
+    mem = get_members(t)
+    t = t[mem]
+    
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
+    stream = ~spur
+    
+    cspur = mpl.cm.Blues_r(0.15)
+    cstream = mpl.cm.Blues_r(0.4)
+    colors = [cstream, cspur, 'darkorange']
+    colors = ['darkorange', 'orangered', 'navy']
+    
+    labels = ['Bonaca et al. (2020)', 'Huang et al. (2019)', 'Koposov et al. (2010)']
+    colors = ['darkorange', 'orangered', '0.8']
+    colors = ['dodgerblue', 'orangered', '0.7']
+    ecolors = ['navy', 'red', '0.7']
+    
+    colors = ['#3dd0e8', '#ff8d3e', '0.7']
+    #colors = ['#3dd0e8', '#f84600', '0.7']
+    ecolors = ['#3d7be8', '#f82b00', '0.7']
+    ecolors = ['#3d7be8', '#f84600', '0.7']
+    markers = ['o', '*', 'o']
+    sizes = [10, 18, 8]
+    msizes = [6.5, 10, 4]
+    #msizes = [10, 18, 4]
+    ms = 4
+    mew = 1.5
+    
+    tk = Table.read('../data/koposov_vr.dat', format='ascii.commented_header')
+    tl = Table.read('../data/lamost_vr.fits')
+
+    g = Table(fits.getdata('/home/ana/projects/legacy/GD1-DR2/output/gd1_members.fits'))
+
+    pkl = pickle.load(open('../data/orbit_vr_interp.pkl', 'rb'))
+    qpoly = pkl['f']
+    xphi = np.linspace(-50,-10,100)
+    yvr = qpoly(xphi)
+
+    plt.close()
+    fig, ax = plt.subplots(3,1,figsize=(10,7), sharex=True, gridspec_kw=dict(height_ratios=[1,1.6,1.4]))
+    
+    plt.sca(ax[0])
+    p1, = plt.plot(tk['phi1'], tk['phi2'], 'o', color=colors[2], alpha=1, label=labels[2], ms=ms+1.5)
+    p1b, = plt.plot(tl['phi1'], tl['phi2'], 's', color=colors[2], alpha=1, label=labels[2], ms=ms+1.5)
+    
+    plt.sca(ax[1])
+    plt.plot(xphi, yvr, '-', color='k', lw=2, alpha=0.7)
+    plt.errorbar(tk['phi1'], tk['vr'], yerr=tk['err'], fmt='o', color=colors[2], lw=1.5, alpha=1, label='', ms=ms)
+    plt.errorbar(tl['phi1'], tl['vr'], yerr=tl['err'], fmt='s', color=colors[2], lw=1.5, alpha=1, label='', ms=ms)
+    
+    kvr = qpoly(tk['phi1'])
+    lvr = qpoly(tl['phi1'])
+    
+    plt.sca(ax[2])
+    plt.axhline(0, color='k', lw=2, alpha=0.7, zorder=0)
+    plt.errorbar(tk['phi1'], tk['vr'] - kvr, yerr=tk['err'], fmt='o', color=colors[2], lw=1.5, alpha=1, label='', zorder=0, ms=ms)
+    plt.errorbar(tl['phi1'], tl['vr'] - lvr, yerr=tl['err'], fmt='s', color=colors[2], lw=1.5, alpha=1, label='', zorder=0, ms=ms)
+    
+    p2 = []
+    
+    for e, ind in enumerate([stream, spur]):
+        plt.sca(ax[0])
+        p_, = plt.plot(t['phi1'][ind], t['phi2'][ind], marker=markers[e], ls='none', color=colors[e], label=labels[e], ms=msizes[e], mec=ecolors[e], mew=mew)
+        p2 += [p_]
+        
+        plt.sca(ax[1])
+        plt.errorbar(t['phi1'][ind], t['Vrad'][ind], yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), color=ecolors[e], mfc=colors[e], fmt=markers[e], label='', ms=msizes[e], mec=ecolors[e], mew=mew)
+        
+        plt.sca(ax[2])
+        vr = qpoly(t['phi1'][ind])
+        
+        plt.errorbar(t['phi1'][ind], t['Vrad'][ind] - vr, yerr=(t['lerr_Vrad'][ind], t['uerr_Vrad'][ind]), fmt=markers[e], color=ecolors[e], mfc=colors[e], zorder=0, lw=2, ms=msizes[e], mec=ecolors[e], mew=mew)
+    
+    # medians
+    phi1_med = np.zeros(8)
+    vr_med = np.zeros(8)
+    vr_sig = np.zeros(8)
+    vr_std = np.zeros(8)
+    
+    for e, ind in enumerate([stream, spur]):
+        plt.sca(ax[2])
+        fields = np.unique(t['field'][ind])
+        
+        for ee, f in enumerate(fields):
+            ifield = t['field']==f
+            vr = qpoly(t['phi1'][ind & ifield])
+            plt.errorbar(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), yerr=np.std(t['Vrad'][ind & ifield]-vr), fmt='none', color='k', lw=2, zorder=ee+2)
+            plt.plot(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), marker=markers[e], color=colors[e], ms=sizes[e], mec='k', mew=2, zorder=ee+3+e)
+            
+            print(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), np.std(t['Vrad'][ind & ifield]-vr))
+            #print(t['Vrad'][ind & ifield])
+            
+            phi1_med[f-1] = np.median(t['phi1'][ind & ifield])
+            vr_med[f-1] = np.median(t['Vrad'][ind & ifield] - vr)
+            vr_sig[f-1] = np.std(t['Vrad'][ind & ifield]-vr)
+            vr_std[f-1] = np.median(t['std_Vrad'][ind & ifield])
+    
+    print(vr_med[0] - vr_med[5], vr_std[0], vr_std[5])
+    print(vr_med[2] - vr_med[1], vr_std[2], vr_std[1])
+    #print(vr_std)
+
+    plt.sca(ax[0])
+    plt.scatter(g['phi1'], g['phi2'], s=g['pmem']*4, c=g['pmem'], cmap=mpl.cm.binary, vmin=0.5, vmax=1.1, zorder=0, label='')
+    plt.ylim(-4,4)
+    plt.xlim(-48, -26)
+    #plt.xlim(-58, -26)
+    plt.ylabel('$\phi_2$ [deg]')
+    
+    plt.legend([p1, p1b, (p2[0], p2[1])],[labels[2], labels[1], labels[0]], handler_map={p2[0]:HandlerLine2D(numpoints=2), p2[1]:HandlerLine2D(numpoints=1)}, ncol=3, frameon=False, handlelength=2, loc=3, fontsize='small', numpoints=1)
+    
+    plt.sca(ax[1])
+    plt.ylim(-140,49)
+    #plt.ylim(-140,70)
+    plt.ylabel('$V_r$ [km s$^{-1}$]')
+    
+    plt.sca(ax[2])
+    plt.ylim(-9,9)
+    plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
+    plt.xlabel('$\phi_1$ [deg]')
+    
+    plt.tight_layout(h_pad=0)
+    plt.savefig('../paper/gd1_kinematics.pdf')
+
+def overlaps():
+    """"""
+    tk = Table.read('../data/koposov_vr.dat', format='ascii.commented_header')
+    ck = gc.GD1(phi1=tk['phi1']*u.deg, phi2=tk['phi2']*u.deg)
+
+    tk = Table.read('../data/lamost_vr.fits')
+    ck = gc.GD1(phi1=tk['phi1'], phi2=tk['phi2'])
+    ckeq = ck.transform_to(coord.ICRS)
+    ckeq = coord.SkyCoord(ra=ckeq.ra, dec=ckeq.dec)
+    
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3)
+    t = t[ind]
+    mem = get_members(t)
+    t = t[mem]
+    c = gc.GD1(phi1=t['phi1'], phi2=t['phi2'])
+    ceq = c.transform_to(coord.ICRS)
+    ceq = coord.SkyCoord(ra=ceq.ra, dec=ceq.dec)
+    
+    idx, d2d, d3d = ceq.match_to_catalog_sky(ckeq)
+    
+    print(np.min(d2d))
+    plt.close()
+    #fig, ax = plt.subplots(1,2, figsize=(10,5))
+    #plt.sca(ax[0])
+    #plt.hist(d2d.to(u.arcsec).value, bins=np.linspace(0,2,20))
+    
+    #plt.sca(ax[1])
+    
+    fig, ax = plt.subplots(2,1,figsize=(10,7), sharex=True)
+    
+    plt.sca(ax[0])
+    imatch = d2d<0.5*u.arcsec
+    #print(np.shape(idx), len(t), len(tk))
+    plt.errorbar(t['phi1'][imatch], t['Vrad'][imatch], yerr=t['std_Vrad'][imatch], fmt='o', label='Hectochelle (Bonaca et al. 2020)')
+    plt.errorbar(tk['phi1'][idx[imatch]], tk['vr'][idx[imatch]], yerr=tk['err'][idx[imatch]], fmt='o', label='LAMOST (Huang et al. 2019)')
+    
+    plt.legend()
+    plt.ylabel('$V_r$ [km s$^{-1}$]')
+
+    dvr = t['Vrad'][imatch] - tk['vr'][idx[imatch]]
+    dvr_err = np.sqrt(tk['err'][idx[imatch]]**2 + t['std_Vrad'][imatch]**2)
+    #print(dvr, dvr_err, dvr/dvr_err)
+    
+    plt.sca(ax[1])
+    plt.axhline(0, color='k')
+    plt.errorbar(t['phi1'][imatch], dvr, yerr=dvr_err, fmt='o')
+    
+    plt.xlabel('$\phi_1$ [deg]')
+    plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
+    
+    plt.tight_layout()
+    plt.savefig('../paper/response_dvr.png')
+
+def perturber_properties(label='v500w200', N=99856, p=5):
+    """Print the range of allowed perturber masses, sizes, impact parameters, impact times"""
+    
+    # spatial
+    sampler = np.load('../../gd1_spur/data/unique_samples_v500w200.npz')
+    
+    models = np.unique(sampler['chain'], axis=0)
+    models = sampler['chain']
+    lnp = sampler['lnp']
+    pp = np.percentile(lnp, p)
+    
+    ind = lnp>=pp
+    models = models[ind]
+    lnp = lnp[ind]
+    
+    print(np.shape(models))
+    params = ['Timpact', 'bx', 'by', 'vxsub', 'vysub', 'M', 'rs', 'Tgap']
+    tall = Table(models, names=params)
+    tall['vsub'] = np.sqrt(tall['vxsub']**2 + tall['vysub']**2)
+    tall['b'] = np.sqrt(tall['bx']**2 + tall['by']**2)
+    
+    # spatial + rv
+    t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
+    
+    c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+    ceq = c.transform_to(coord.ICRS)
+    cgal = c.transform_to(coord.Galactic)
+    
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    orbit = ham.integrate_orbit(w0, dt=1., n_steps=1)
+    epot = orbit.potential_energy()[0,:]
+    ekin = orbit.kinetic_energy()[0,:]
+    
+    ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
+    ind_bound = ekin<epot
+    
+    t['vsub'] = np.sqrt(t['vxsub']**2 + t['vysub']**2)
+    t['b'] = np.sqrt(t['bx']**2 + t['by']**2)
+    
+    keys = ['M', 'rs', 'b', 'Timpact', 'vsub']
+    percentiles = [0.001,50,99.999]
+    print_fmt = ['{:.2g}'] * len(percentiles)
+    print_fmt = ' '.join(print_fmt)
+    
+    for k in keys:
+        p = np.percentile(t[k], percentiles)
+        pp = '{:s} ' + print_fmt
+        print(pp.format(k, *p))
+        
+        #p = np.percentile(t[k], percentiles)
+        #pp = '  ' + print_fmt
+        #print(pp.format(*p))
+        
+        p = np.percentile(t[k][ind & ind_bound], percentiles)
+        pp = '  ' + print_fmt
+        print(pp.format(*p))
+        

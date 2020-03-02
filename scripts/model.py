@@ -3407,7 +3407,7 @@ def corner(full=False, label='', p=5):
     plt.plot(tgc['rhl'], gc_mass, '^', ms=8)
 
     plt.tight_layout(h_pad=0, w_pad=0)
-    plt.savefig('../plots/corner.png')
+    #plt.savefig('../plots/corner.png')
     #plt.savefig('../paper/corner.pdf')
 
 def orbit_cross(new=True, sgr=True, massive=True):
