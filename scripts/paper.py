@@ -854,4 +854,183 @@ def perturber_properties(label='v500w200', N=99856, p=5):
         p = np.percentile(t[k][ind & ind_bound], percentiles)
         pp = '  ' + print_fmt
         print(pp.format(*p))
+
+def skybox_quivers(label='v500w200', N=99856, step=1, colorby='dvr1', dvrcut=False):
+    """"""
+    
+    t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
+    
+    c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+    ceq = c.transform_to(coord.ICRS)
+    cgal = c.transform_to(coord.Galactic)
+    
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    orbit = ham.integrate_orbit(w0, dt=1., n_steps=1)
+    epot = orbit.potential_energy()[0,:]
+    ekin = orbit.kinetic_energy()[0,:]
+    energy = orbit.energy()[0,:]
+    
+    label = 'GD-1 perturber now'
+    
+    ind = (np.abs(t['dvr1'])<0.5) & (np.abs(t['dvr2'])<0.5)
+    
+    if step>1:
+        ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
+        ind_bound = ekin<epot
+        vsub = np.sqrt(t['vxsub']**2 + t['vysub']**2)
+        t = t[ind & ind_bound]
+    
+        c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+        ceq = c.transform_to(coord.ICRS)
+        cgal = c.transform_to(coord.Galactic)
         
+        w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+        orbit = ham.integrate_orbit(w0, dt=1., n_steps=1)
+        epot = orbit.potential_energy()[0,:]
+        ekin = orbit.kinetic_energy()[0,:]
+        energy = orbit.energy()[0,:]
+        
+        label += '\n$|\Delta$ $V_r$| < 1 km s$^{-1}$'
+    
+    # reflex motion correction
+    ceq = gc.reflex_correct(ceq, galactocentric_frame=gc_frame)
+    
+    cplane = coord.Galactic(l=np.linspace(0,360,100)*u.deg, b=np.zeros(100)*u.deg)
+    cplane_eq = cplane.transform_to(coord.ICRS)
+    
+    tsgr = Table.read('/home/ana/projects/h3/data/SgrTriax_DYN.dat.gz', format='ascii')
+    tsgr = tsgr[::10]
+    c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr)
+    #vr = gc.vgsr_to_vhel(c_sgr, tsgr['vgsr']*u.km/u.s)
+    #c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr, radial_velocity=vr)
+    
+    g = Table(fits.getdata('/home/ana/projects/legacy/GD1-DR2/output/gd1_members.fits'))
+    cgd1 = gc.GD1(phi1=g['phi1']*u.deg, phi2=g['phi2']*u.deg)
+    cgd1_eq = cgd1.transform_to(coord.ICRS)
+    
+    tdm = Table.read('../data/DL17_DM.fits')
+    #cdm = coord.SkyCoord(ra=tdm['ra']*u.deg, dec=tdm['dec']*u.deg, frame='icrs')
+    cdm_gal = coord.Galactocentric(x=tdm['X_gal']*u.kpc, y=tdm['Y_gal']*u.kpc, z=tdm['Z_gal']*u.kpc, v_x=tdm['Vx_gal']*u.km/u.s, v_y=tdm['Vy_gal']*u.km/u.s, v_z=tdm['Vz_gal']*u.km/u.s, **gc_frame_dict)
+    cdm = cdm_gal.transform_to(coord.ICRS)
+
+    ts = Table.read('../data/DL17_Stars.fits')
+    #cs = coord.SkyCoord(ra=ts['ra']*u.deg, dec=ts['dec']*u.deg, frame='icrs')
+    cs_gal = coord.Galactocentric(x=ts['X_gal']*u.kpc, y=ts['Y_gal']*u.kpc, z=ts['Z_gal']*u.kpc, v_x=ts['Vx_gal']*u.km/u.s, v_y=ts['Vy_gal']*u.km/u.s, v_z=ts['Vz_gal']*u.km/u.s, **gc_frame_dict)
+    cs = cs_gal.transform_to(coord.ICRS)
+    
+    #cs = c_sgr
+    
+    # coloring
+    if colorby=='mass':
+        clr = t['M']
+        clabel = 'log M$_{perturb}$ / M$_\odot$'
+        cmap = 'magma'
+        vmin = 6.2
+        vmax = 7.2
+    elif colorby=='rs':
+        clr = t['rs']
+        clabel = 'Scale size [pc]'
+        cmap = 'magma'
+        vmin = 0
+        vmax = 10
+    elif colorby=='b':
+        clr = np.sqrt(t['bx']**2 + t['by']**2)
+        clabel = 'Impact parameter [pc]'
+        cmap = 'magma'
+        vmin = 0
+        vmax = 60
+    elif colorby=='vsub':
+        clr = np.sqrt(t['vxsub']**2 + t['vysub']**2)
+        clabel = 'Perturber velocity [km s$^{-1}$]'
+        cmap = 'magma'
+        vmin = 0
+        vmax = 500
+    elif colorby=='t':
+        clr = t['Timpact']
+        clabel = 'Impact time [Gyr]'
+        cmap = 'magma'
+        vmin = 0.35
+        vmax = 0.55
+    elif colorby=='tgap':
+        clr = t['Tgap']
+        clabel = 'Gap time [Myr]'
+        cmap = 'magma'
+        vmin = 28
+        vmax = 30
+    elif colorby=='dvr1':
+        clr = t['dvr1']
+        clabel = '$\Delta$ V$_r$($\phi_1$=-33.7) [km s$^-1$]'
+        clabel = 'Relative radial velocity [km s$^-1$]'
+        cmap = 'twilight'
+        vmin = -5
+        vmax = 5
+    elif colorby=='dvr2':
+        clr = t['dvr2']
+        clabel = '$\Delta$ V$_r$($\phi_1$=-30) [km s$^-1$]'
+        cmap = 'twilight'
+        vmin = -5
+        vmax = 5
+    elif colorby=='energy':
+        clr = energy.to(u.kpc**2/u.Myr**2)
+        clabel = 'Energy [kpc$^2$ Myr$^{-2}$]'
+        cmap = 'magma'
+        vmin = 0.1
+        vmax = 0.3
+    elif colorby=='pm':
+        clr = t['dmu22']
+        clabel = '$\Delta \mu_{\phi_2,stream-spur}$ [mas yr$^-1$]'
+        clabel = '$\Delta \mu_{\phi_2}$ [mas yr$^-1$]'
+        cmap = 'magma_r'
+        vmin = -0.4
+        vmax = -0.1
+
+    plt.close()
+    fig = plt.figure(figsize=(12,5.2))
+    ax = fig.add_subplot(111, projection='mollweide')
+    
+    if step==0:
+        plt.plot(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, 'ko', rasterized=True, zorder=0, ms=3, mec='0.3', mew=0.5, label=label)
+    
+    if step>0:
+        isort_clr = np.argsort(clr)[::-1]
+        ceq = ceq[::5]
+        clr = clr[::5]
+        im = plt.scatter(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, rasterized=True, c=clr, zorder=0, s=1, cmap=cmap, vmin=vmin, vmax=vmax, label=label)
+        plt.quiver(ceq.ra.wrap_at(wangle).radian, ceq.dec.radian, ceq.pm_ra_cosdec.value, ceq.pm_dec.value, color=mpl.cm.magma(0), width=1, units='dots', headlength=2, scale_units='inches', scale=4, label='', alpha=0.8, zorder=0)
+    
+    if step==3:
+        cs = cs[::5]
+        plt.plot(cs.ra.wrap_at(wangle).radian, cs.dec.radian, 'o', color=mpl.cm.magma(0.5), ms=2.5, mew=0, alpha=0.6, rasterized=True, label='Sagittarius stars\nDierickx & Loeb (2017)')
+        plt.quiver(cs.ra.wrap_at(wangle).radian, cs.dec.radian, cs.pm_ra_cosdec.value, cs.pm_dec.value, color=mpl.cm.magma(0.5), width=1, units='dots', headlength=2, scale_units='inches', scale=4, label='', alpha=0.8)
+    
+    if step==4:
+        cdm = cdm[::5]
+        plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'o', color=mpl.cm.magma(0.7), ms=0.5, mew=0, alpha=0.6, rasterized=True, label='Sagittarius dark matter\nDierickx & Loeb (2017)')
+        plt.quiver(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, cdm.pm_ra_cosdec.value, cdm.pm_dec.value, color=mpl.cm.magma(0.7), width=1, units='dots', headlength=1, scale_units='inches', scale=4, label='', alpha=1)
+    
+    plt.legend(frameon=True, loc=4, handlelength=0.2, fontsize='small', markerscale=2)
+    if step>0:
+        legend = plt.gca().get_legend()
+        legend.legendHandles[0].set_color(mpl.cm.twilight(0.5))
+    if step>2:
+        legend = plt.gca().get_legend()
+        legend.legendHandles[1].set_color(mpl.cm.twilight(0.5))
+    
+    
+    plt.xlabel('R.A. [deg]')
+    plt.ylabel('Dec [deg]')
+    plt.grid(True)
+    
+    plt.tight_layout()
+    
+    ## add custom colorbar
+    ##sm = plt.cm.ScalarMappable(cmap=mpl.cm.viridis, norm=plt.Normalize(vmin=0, vmax=20))
+    #sm = plt.cm.ScalarMappable(cmap=viriwarm, norm=plt.Normalize(vmin=0, vmax=20))
+    ## fake up the array of the scalar mappable. Urgh...
+    #sm._A = []
+    
+    if step>0:
+        cb = fig.colorbar(im, ax=ax, pad=0.04, aspect=20)
+        cb.set_label(clabel)
+    
+    plt.savefig('../plots/skybox_pm.png')
