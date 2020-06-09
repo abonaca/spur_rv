@@ -16,6 +16,7 @@ import glob
 import pickle
 
 #from spec import *
+#from spec import get_date
 wangle = 180*u.deg
 
 def gd1_dist(phi1):
@@ -769,6 +770,11 @@ def chelle_map():
     
 # The Payne & Minesweeper reduction
 
+def get_date(n):
+    """Get date when the field was observed (assumes no repeats)"""
+    
+    return glob.glob('/home/ana/data/hectochelle/tiles/gd1_{:d}/d*'.format(n))[0].split('/')[-1]
+
 def read_msg_catalog():
     """"""
     tp = Table.read('../data/payne_catalog.fits')
@@ -803,6 +809,8 @@ def build_master_catalog():
     """"""
     
     t = Table.read('../data/msg_catalog.fits')
+    #t = Table.read('../data/gd1_MSG_v2.0.fits')
+    #t.remove_columns(['ra', 'dec'])
     N = len(t)
     starid = np.zeros(N, dtype='int')
     
@@ -835,22 +843,23 @@ def build_master_catalog():
     tout['field'][(tout['field']==7) & (tout['ra']<150)] = 7
     #tout['field'][tout['ra']<150] = 7
     
+    
     # positions
     #c = coord.ICRS(ra=tout['ra']*u.deg, dec=tout['dec']*u.deg)
     #cg = c.transform_to(gc.GD1)
     
-    # heliocentric vr correction
-    for f in fields:
-        fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.sum.fits'.format(f, get_date(f))
-        hdu = fits.open(fname)
-        dvr = hdu[0].header['HELIO_RV']
-        ind = field==f
-        #tout['Vrad'][ind] += dvr
+    ## heliocentric vr correction
+    #for f in fields:
+        #fname = '/home/ana/data/hectochelle/tiles/gd1_{0:d}/{1:s}/reduced/v3.0/specptg_gd1_{0:d}_cluster_{1:s}.sum.fits'.format(f, get_date(f))
+        #hdu = fits.open(fname)
+        #dvr = hdu[0].header['HELIO_RV']
+        #ind = field==f
+        ##tout['Vrad'][ind] += dvr
         
     c = coord.SkyCoord(ra=tout['ra']*u.deg, dec=tout['dec']*u.deg, pm_ra_cosdec=tout['pmra']*u.mas/u.yr, pm_dec=tout['pmdec']*u.mas/u.yr, radial_velocity=tout['Vrad']*u.km/u.s)
     #c = coord.SkyCoord(ra=g.ra, dec=g.dec, pm_ra_cosdec=g.pmra, pm_dec=g.pmdec)
     cg_nocorr = c.transform_to(gc.GD1)
-
+    
     gd1_c_dist = gc.GD1(phi1=cg_nocorr.phi1, phi2=cg_nocorr.phi2,
                         #distance=gd1_dist(cg.phi1),
                         distance=gd1_dist(cg_nocorr.phi1),
@@ -859,7 +868,7 @@ def build_master_catalog():
                         radial_velocity=cg_nocorr.radial_velocity)
 
     # Correct for reflex motion
-    v_sun = coord.Galactocentric.galcen_v_sun
+    v_sun = coord.Galactocentric().galcen_v_sun
     observed = gd1_c_dist.transform_to(coord.Galactic)
     rep = observed.cartesian.without_differentials()
     rep = rep.with_differentials(observed.cartesian.differentials['s'] + v_sun)
@@ -873,7 +882,7 @@ def build_master_catalog():
     #c0 = pkl0['cg']
     
     ind = (cmg0.phi1.wrap_at(wangle)<0*u.deg) & (cmg0.phi1.wrap_at(wangle)>-80*u.deg)
-    prv = np.polyfit(cmg0.phi1.wrap_at(wangle)[ind], cmg0.radial_velocity[ind], 3)
+    prv = np.polyfit(cmg0.phi1.wrap_at(wangle)[ind].deg, cmg0.radial_velocity[ind].value, 3)
     polyrv = np.poly1d(prv)
     drv = tout['Vrad'] - polyrv(cg.phi1.wrap_at(wangle).deg)
     
@@ -926,6 +935,7 @@ def build_master_catalog():
         tout['yfocal'][ind_field] = hdu[5].data['YFOCAL'][t_['fibID']-1]
     
     tout.pprint()
+    print(tout.colnames)
     tout.write('../data/master_catalog.fits', overwrite=True)
 
 def test_master():
@@ -1086,7 +1096,7 @@ def phi1_dvr():
 
     t = Table.read('../data/master_catalog.fits')
     #ind = (t['priority']<4) #& (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
-    ind = (t['priority']<=3) & (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2) #& (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
+    ind = (t['priority']<=3) & (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3) #& (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
     
     ind = get_members(t)
     t = t[ind]
@@ -1116,12 +1126,12 @@ def phi1_dvr():
     plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
     
     plt.sca(ax[2])
-    im2 = plt.scatter(t['phi1'], t['delta_Vrad'], c=t['FeH'], vmin=-3, vmax=-1.5)
+    im2 = plt.scatter(t['phi1'], t['delta_Vrad'], c=t['init_FeH'], vmin=-3, vmax=-1.5)
     plt.ylim(-10,10)
     plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
     
     plt.sca(ax[3])
-    im3 = plt.scatter(t['phi1'], t['delta_Vrad'], c=t['aFe'], vmin=-0.2, vmax=0.6)
+    im3 = plt.scatter(t['phi1'], t['delta_Vrad'], c=t['init_aFe'], vmin=-0.2, vmax=0.6)
     plt.ylim(-10,10)
     plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
     plt.xlabel('$\phi_1$ [deg]')
@@ -1142,7 +1152,7 @@ def phi1_dvr():
     plt.colorbar(im3, cax=cbar_ax)
     plt.ylabel('[$\\alpha$/Fe]')
     
-    plt.savefig('../plots/phi1_dvr.png')
+    #plt.savefig('../plots/phi1_dvr.png')
 
 def phi2_dvr():
     """"""
@@ -1161,14 +1171,15 @@ def phi2_dvr():
 def phi1_dvr_phi2():
     """Plot delta vr vs phi1, colored by phi2"""
     t = Table.read('../data/master_catalog.fits')
-    ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2) & (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
+    #ind = (t['priority']<=3) & (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2) & (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2)
+    ind = (t['priority']<=3) & (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>2) #& (t['delta_Vrad']<-1) & (t['delta_Vrad']>-20) & (t['FeH']<-2)
     t = t[ind]
     
     plt.close()
     plt.figure(figsize=(10,10))
     
-    plt.scatter(t['phi1'], t['Vrad'], c=t['phi2'], vmin=-0.5, vmax=1.5, s=40)
-    #plt.ylim(-20,0)
+    plt.scatter(t['phi1'], t['delta_Vrad'], c=t['phi2'], vmin=-0.5, vmax=1.5, s=40)
+    plt.ylim(-10,10)
     plt.xlabel('$\phi_1$ [deg]')
     plt.ylabel('$V_r$ [km s$^{-1}$]')
     
@@ -1193,8 +1204,8 @@ def afeh():
     
     plt.sca(ax[1][0])
     plt.plot(t['FeH'], t['aFe'], 'ko', ms=3, zorder=0, label='All targeted')
-    plt.plot(tmem['FeH'], tmem['aFe'], 'ro', label='PM, CMD, |$\Delta V_r$|<20 km s$^{-1}$')
-    plt.errorbar(tmem['FeH'], tmem['aFe'], xerr=(tmem['lerr_FeH'], tmem['uerr_FeH']), yerr=(tmem['lerr_aFe'], tmem['uerr_aFe']), fmt='none', color='r', lw=0.5, label='')
+    plt.plot(tmem['init_FeH'], tmem['init_aFe'], 'ro', label='PM, CMD, |$\Delta V_r$|<20 km s$^{-1}$')
+    plt.errorbar(tmem['init_FeH'], tmem['init_aFe'], xerr=(tmem['lerr_FeH'], tmem['uerr_FeH']), yerr=(tmem['lerr_aFe'], tmem['uerr_aFe']), fmt='none', color='r', lw=0.5, label='')
     #plt.errorbar(tmem['FeH'], tmem['aFe'], xerr=tmem['std_FeH'], yerr=tmem['std_aFe'], fmt='none', color='r', lw=0.5, label='')
     
     plt.legend(loc=4, fontsize='small')
@@ -1207,16 +1218,16 @@ def afeh():
     
     plt.sca(ax[0][0])
     plt.hist(t['FeH'], bins=bins_feh, color='k', alpha=0.3, density=True)
-    plt.hist(tmem['FeH'], bins=bins_feh, color='r', alpha=0.3, density=True)
+    plt.hist(tmem['init_FeH'], bins=bins_feh, color='r', alpha=0.3, density=True)
     plt.axis('off')
     
     plt.sca(ax[1][1])
     plt.hist(t['aFe'], bins=bins_afe, color='k', alpha=0.3, density=True, orientation='horizontal')
-    plt.hist(tmem['aFe'], bins=bins_afe, color='r', alpha=0.3, density=True, orientation='horizontal')
+    plt.hist(tmem['init_aFe'], bins=bins_afe, color='r', alpha=0.3, density=True, orientation='horizontal')
     plt.axis('off')
     
     plt.tight_layout(h_pad=0, w_pad=0)
-    plt.savefig('../plots/afeh.png')
+    #plt.savefig('../plots/afeh.png')
 
 def dvr_feh():
     """"""
@@ -1887,19 +1898,24 @@ def get_members(t, full=False):
     # radial velocity selection
     #vrlims = np.array([-20, -1])
     vrlims = np.array([-7,7])
-    #vrlims = np.array([-6,10])
+    #vrlims = np.array([-10,10])
     vrmem = (t['delta_Vrad']>vrlims[0]) & (t['delta_Vrad']<vrlims[1])
     
     # feh selection
-    fehlims = np.array([-2.8, -1.9])
-    fehlims = np.array([-2.8, -2.1])
-    fehlims = np.array([-2.55, -1.8])
+    ##fehlims = np.array([-2.8, -1.9])
+    ##fehlims = np.array([-2.8, -2.1])
+    #fehlims = np.array([-2.55, -1.8])
     #fehlims = np.array([-2.8, -1.8])
-    fehmem = (t['FeH']>fehlims[0]) & (t['FeH']<fehlims[1]) #& (t['aFe']>0.2)
+    #fehmem = (t['FeH']>fehlims[0]) & (t['FeH']<fehlims[1]) #& (t['aFe']>0.2)
 
     fehlims = np.array([-2.37, -1.75])
-    #fehlims = np.array([-2.65, -1.75])
-    fehmem = (t['init_FeH']>fehlims[0]) & (t['init_FeH']<fehlims[1]) #& (t['aFe']>0.2)
+    #fehlims = np.array([-2.37, -1.83])
+    #fehlims = np.array([-2.7, -1.7])
+    ##fehlims = np.array([-2.3, -1.9])
+    ##fehlims = np.array([-2.37, -1.83])
+    ##fehlims = np.array([-2.2, -1.8])
+    #fehlims = np.array([-2.3, -1.7])
+    fehmem = (t['init_FeH']>fehlims[0]) & (t['init_FeH']<fehlims[1]) #& (t['init_aFe']<0.2)
     
     # pm selection
     pm1lims = np.array([-9,-4.5])
@@ -2263,6 +2279,31 @@ def phi1_vr_fiber():
     
     plt.tight_layout(rect=[0.03,0,1,1], h_pad=0)
     plt.savefig('../plots/phi1_vr_field.png')
+
+def test_v2():
+    """"""
+    
+    t1 = Table.read('../data/GD1_MSG_V1.3.fits')
+    t1.sort('objID')
+    t2 = Table.read('../data/gd1_MSG_v2.0.fits')
+    t2.sort('objID')
+    t = Table.read('../data/master_catalog.fits')
+    #t.sort('objID')
+    #t.pprint()
+    #print(t1.colnames)
+    
+    #t1.pprint()
+    #t2.pprint()
+    
+    plt.close()
+    plt.figure()
+    
+    plt.plot(t1['SNR'], t1['Vrad'] - t2['Vrad'], '.')
+    
+    plt.xlim(3,10)
+    plt.ylim(-5,5)
+    
+    plt.tight_layout()
 
 
 # single field analysis

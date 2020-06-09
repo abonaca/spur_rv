@@ -2,6 +2,7 @@ from model import *
 from vel import get_members
 from matplotlib.legend_handler import HandlerLine2D
 import healpy as hp
+from scipy.ndimage import gaussian_filter
 
 wangle = 180*u.deg
 lightsteelblue = '#dde3ef'
@@ -113,11 +114,23 @@ def plot_membership():
     #plt.plot(t['FeH'][pmmem & cmdmem & vrmem], t['aFe'][pmmem & cmdmem & vrmem], 'o', color=navyblue, mec='none', ms=6, label='GD-1 members', zorder=1)
     #plt.plot(t['FeH'][mem], t['aFe'][mem], 'o', color=navyblue, mec='none', ms=6, label='GD-1 members', zorder=1)
 
+    #plt.plot(t['init_FeH'][~(cmdmem & vrmem)], t['init_aFe'][~(cmdmem & vrmem)], 'o', color=lightsteelblue, mec='none', alpha=1, ms=4, label='Field stars', zorder=0)
+    #plt.plot(t['init_FeH'][prelim_mem], t['init_aFe'][prelim_mem], 'o', color=steelblue, mec='none', alpha=1, ms=7, zorder=0, label='Preliminary GD-1 members')
+    #plt.plot(t['init_FeH'][mem & stream], t['init_aFe'][mem & stream], 'o', color=navyblue, mec='none', ms=7, label='GD-1 stream members', zorder=1)
+    #plt.plot(t['init_FeH'][mem & spur], t['init_aFe'][mem & spur], '*', color=navyblue, mec='none', ms=12, label='GD-1 spur members', zorder=1)
+    #plt.errorbar(t['init_FeH'][mem], t['init_aFe'][mem], yerr=t['std_init_FeH'][mem], xerr=t['std_init_aFe'][mem], fmt='none', color=navyblue, label='', zorder=0, alpha=0.5, lw=0.7)
+    
     plt.plot(t['init_FeH'][~(cmdmem & vrmem)], t['aFe'][~(cmdmem & vrmem)], 'o', color=lightsteelblue, mec='none', alpha=1, ms=4, label='Field stars', zorder=0)
     plt.plot(t['init_FeH'][prelim_mem], t['aFe'][prelim_mem], 'o', color=steelblue, mec='none', alpha=1, ms=7, zorder=0, label='Preliminary GD-1 members')
     plt.plot(t['init_FeH'][mem & stream], t['aFe'][mem & stream], 'o', color=navyblue, mec='none', ms=7, label='GD-1 stream members', zorder=1)
     plt.plot(t['init_FeH'][mem & spur], t['aFe'][mem & spur], '*', color=navyblue, mec='none', ms=12, label='GD-1 spur members', zorder=1)
     plt.errorbar(t['init_FeH'][mem], t['aFe'][mem], yerr=t['std_init_FeH'][mem], xerr=t['std_aFe'][mem], fmt='none', color=navyblue, label='', zorder=0, alpha=0.5, lw=0.7)
+
+    #plt.plot(t['FeH'][~(cmdmem & vrmem)], t['aFe'][~(cmdmem & vrmem)], 'o', color=lightsteelblue, mec='none', alpha=1, ms=4, label='Field stars', zorder=0)
+    #plt.plot(t['FeH'][prelim_mem], t['aFe'][prelim_mem], 'o', color=steelblue, mec='none', alpha=1, ms=7, zorder=0, label='Preliminary GD-1 members')
+    #plt.plot(t['FeH'][mem & stream], t['aFe'][mem & stream], 'o', color=navyblue, mec='none', ms=7, label='GD-1 stream members', zorder=1)
+    #plt.plot(t['FeH'][mem & spur], t['aFe'][mem & spur], '*', color=navyblue, mec='none', ms=12, label='GD-1 spur members', zorder=1)
+    #plt.errorbar(t['FeH'][mem], t['aFe'][mem], yerr=t['std_FeH'][mem], xerr=t['std_aFe'][mem], fmt='none', color=navyblue, label='', zorder=0, alpha=0.5, lw=0.7)
 
     
     for fehlim in fehlims:
@@ -134,7 +147,7 @@ def plot_membership():
     plt.title('+ Metallicity selection', fontsize='medium')
 
     #plt.tight_layout(w_pad=0.1)
-    plt.savefig('../paper/members.pdf')
+    #plt.savefig('../paper/members.pdf')
 
 def dvr():
     """"""
@@ -251,7 +264,7 @@ def dvr():
     plt.xlabel('$\phi_1$ [deg]')
     
     plt.tight_layout(h_pad=0)
-    plt.savefig('../paper/gd1_kinematics.pdf')
+    #plt.savefig('../paper/gd1_kinematics.pdf')
 
 def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     """"""
@@ -281,12 +294,12 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     
     # sgr models
     
-    # law & majewski (2010)
-    tsgr = Table.read('/home/ana/projects/h3/data/SgrTriax_DYN.dat.gz', format='ascii')
-    tsgr = tsgr[::10]
-    c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr)
-    vr = gc.vgsr_to_vhel(c_sgr, tsgr['vgsr']*u.km/u.s)
-    c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr, radial_velocity=vr)
+    ## law & majewski (2010)
+    #tsgr = Table.read('/home/ana/projects/h3/data/SgrTriax_DYN.dat.gz', format='ascii')
+    #tsgr = tsgr[::10]
+    #c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr)
+    #vr = gc.vgsr_to_vhel(c_sgr, tsgr['vgsr']*u.km/u.s)
+    #c_sgr = coord.ICRS(ra=tsgr['ra']*u.deg, dec=tsgr['dec']*u.deg, distance=tsgr['dist']*u.kpc, pm_ra_cosdec=tsgr['mua']*u.mas/u.yr, pm_dec=tsgr['mud']*u.mas/u.yr, radial_velocity=vr)
     
     # dierickx & loeb (2017)
     tdm = Table.read('../data/DL17_DM.fits')
@@ -320,7 +333,7 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     plt.sca(ax[0][1])
     
     ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
-    #ind = (t['dvr1']>0.7) & (t['dvr1']<2.7) & (np.abs(t['dvr2'])<1)
+    #ind = (t['dvr1']>-1) & (t['dvr1']<0) & (np.abs(t['dvr2'])<1)
     ind_bound = ekin<epot
     vsub = np.sqrt(t['vxsub']**2 + t['vysub']**2)
     t = t[ind & ind_bound]
@@ -378,7 +391,7 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     for i in range(Nbin):
         ind = (csgr.Lambda.wrap_at(wangle)>ra_ed[i]) & (csgr.Lambda.wrap_at(wangle)<ra_ed[i+1])
         dec_med[i] = np.median(csgr.Beta[ind])
-        dec_dn[i], dec_up[i] = np.percentile(csgr.Beta[ind], [25,75])*u.deg
+        dec_dn[i], dec_up[i] = np.percentile(csgr.Beta[ind].deg, [25,75])*u.deg
     
     cmed_sgr = gc.Sagittarius(Lambda=ra_med, Beta=dec_med)
     cup_sgr = gc.Sagittarius(Lambda=ra_med, Beta=dec_up)
@@ -452,7 +465,7 @@ def skybox(label='v500w200', N=99856, step=0, colorby='dvr1', dvrcut=False):
     plt.ylabel(clabel, fontsize='small')
 
     #plt.savefig('../paper/skybox.png')
-    plt.savefig('../paper/skybox.pdf')
+    #plt.savefig('../paper/skybox.pdf')
 
 
 ##########
@@ -479,11 +492,11 @@ def members(snr=3):
     t = t[mem]
     
     print('chemistry')
-    for k in ['FeH', 'init_FeH', 'aFe']:
+    for k in ['FeH', 'init_FeH', 'aFe']: #, 'init_aFe']:
         print(k, np.median(t['{:s}'.format(k)]), np.std(t['{:s}'.format(k)]))
     
-    print('uncertainties')
-    for k in ['Vrad', 'FeH', 'init_FeH', 'aFe']:
+    print('\nuncertainties')
+    for k in ['Vrad', 'FeH', 'init_FeH', 'aFe']: #, 'init_aFe']:
         print(k, np.median(t['std_{:s}'.format(k)]), np.percentile(t['std_{:s}'.format(k)], [90]))
 
 def publish_catalog():
@@ -595,6 +608,52 @@ def init_abundances():
 
 ##########
 # Response
+
+def dvr_feh():
+    """Check radial velocity offsets for different subsamples in metallicity"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3)
+    t = t[ind]
+    mem = get_members(t)
+    t = t[mem]
+    
+    ind_mpoor = t['FeH']<-2.15
+    ind_mpoor = t['FeH']<-2.3
+    t = t[ind_mpoor]
+    #print(np.min(t['FeH']), np.max(t['FeH']))
+    
+#def br():
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
+    stream = ~spur
+    
+    # Load orbit
+    pkl = pickle.load(open('../data/orbit_vr_interp.pkl', 'rb'))
+    qpoly = pkl['f']
+    
+    # medians
+    phi1_med = np.zeros(8)
+    vr_med = np.zeros(8)
+    vr_sig = np.zeros(8)
+    vr_std = np.zeros(8)
+    
+    for e, ind in enumerate([stream, spur]):
+        #plt.sca(ax[2])
+        fields = np.unique(t['field'][ind])
+        
+        for ee, f in enumerate(fields):
+            ifield = t['field']==f
+            vr = qpoly(t['phi1'][ind & ifield])
+            #plt.errorbar(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), yerr=np.std(t['Vrad'][ind & ifield]), fmt='none', color='k', lw=2, zorder=ee+2)
+            #plt.plot(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), marker=markers[e], color=colors[e], ms=sizes[e], mec='k', mew=2, zorder=ee+3+e)
+            
+            phi1_med[f-1] = np.median(t['phi1'][ind & ifield])
+            vr_med[f-1] = np.median(t['Vrad'][ind & ifield] - vr)
+            vr_sig[f-1] = np.std(t['Vrad'][ind & ifield])
+            vr_std[f-1] = np.median(t['std_Vrad'][ind & ifield])
+    
+    print(vr_med[0] - vr_med[5], vr_std[0], vr_std[5])
+    print(vr_med[2] - vr_med[1], vr_std[2], vr_std[1])
 
 def reformat_lamost():
     """"""
@@ -710,7 +769,7 @@ def dvr_lamost():
             plt.errorbar(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), yerr=np.std(t['Vrad'][ind & ifield]-vr), fmt='none', color='k', lw=2, zorder=ee+2)
             plt.plot(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), marker=markers[e], color=colors[e], ms=sizes[e], mec='k', mew=2, zorder=ee+3+e)
             
-            print(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), np.std(t['Vrad'][ind & ifield]-vr))
+            #print(np.median(t['phi1'][ind & ifield]), np.median(t['Vrad'][ind & ifield] - vr), np.std(t['Vrad'][ind & ifield]-vr))
             #print(t['Vrad'][ind & ifield])
             
             phi1_med[f-1] = np.median(t['phi1'][ind & ifield])
@@ -718,8 +777,8 @@ def dvr_lamost():
             vr_sig[f-1] = np.std(t['Vrad'][ind & ifield]-vr)
             vr_std[f-1] = np.median(t['std_Vrad'][ind & ifield])
     
-    print(vr_med[0] - vr_med[5], vr_std[0], vr_std[5])
-    print(vr_med[2] - vr_med[1], vr_std[2], vr_std[1])
+    print(vr_med[0] - vr_med[5], np.sqrt(vr_std[0]**2 + vr_std[5]**2))
+    print(vr_med[2] - vr_med[1], np.sqrt(vr_std[2]**2 + vr_std[1]**2))
     #print(vr_std)
 
     plt.sca(ax[0])
@@ -737,12 +796,13 @@ def dvr_lamost():
     plt.ylabel('$V_r$ [km s$^{-1}$]')
     
     plt.sca(ax[2])
-    plt.ylim(-9,9)
+    plt.ylim(-9.5,9.5)
+    #plt.ylim(-15,15)
     plt.ylabel('$\Delta V_r$ [km s$^{-1}$]')
     plt.xlabel('$\phi_1$ [deg]')
     
     plt.tight_layout(h_pad=0)
-    plt.savefig('../paper/gd1_kinematics.pdf')
+    #plt.savefig('../paper/gd1_kinematics.pdf')
 
 def overlaps():
     """"""
@@ -796,7 +856,7 @@ def overlaps():
     plt.ylabel('$\Delta$ $V_r$ [km s$^{-1}$]')
     
     plt.tight_layout()
-    plt.savefig('../paper/response_dvr.png')
+    #plt.savefig('../paper/response_dvr.png')
 
 def perturber_properties(label='v500w200', N=99856, p=5):
     """Print the range of allowed perturber masses, sizes, impact parameters, impact times"""
@@ -854,6 +914,34 @@ def perturber_properties(label='v500w200', N=99856, p=5):
         p = np.percentile(t[k][ind & ind_bound], percentiles)
         pp = '  ' + print_fmt
         print(pp.format(*p))
+
+def delta_pm():
+    """Calculate difference in proper motions between the spur and the stream"""
+    
+    t = Table.read('../data/master_catalog.fits')
+    ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3) & np.isfinite(t['aFe'])
+    t = t[ind]
+
+    mem = get_members(t)
+    t = t[mem]
+    
+    spur = (t['field']==2) | (t['field']==4) | (t['field']==5) | (t['field']==6)
+    stream = ~spur & (t['phi1']>-35)
+    
+    print(np.median(t['pm_phi2'][spur]), np.std(t['pm_phi2'][spur]), np.median(t['pmra_error'][spur]), np.median(t['pmdec_error'][spur]))
+    print(np.median(t['pm_phi2'][stream]), np.std(t['pm_phi2'][stream]), np.median(t['pmra_error'][stream]), np.median(t['pmdec_error'][stream]))
+    
+    pm_phi2_spur = np.median(t['pm_phi2'][spur])
+    pmerr_phi2_spur = np.std(t['pm_phi2'][spur])
+    
+    pm_phi2_stream = np.median(t['pm_phi2'][stream])
+    pmerr_phi2_stream = np.std(t['pm_phi2'][stream])
+    
+    delta_pm = pm_phi2_stream - pm_phi2_spur
+    delta_pm_err = np.sqrt(pmerr_phi2_spur**2 + pmerr_phi2_stream**2)
+    
+    print(delta_pm, delta_pm_err)
+
 
 def skybox_quivers(label='v500w200', N=99856, step=1, colorby='dvr1', dvrcut=False):
     """"""
@@ -1006,7 +1094,7 @@ def skybox_quivers(label='v500w200', N=99856, step=1, colorby='dvr1', dvrcut=Fal
     if step==4:
         cdm = cdm[::5]
         plt.plot(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, 'o', color=mpl.cm.magma(0.7), ms=0.5, mew=0, alpha=0.6, rasterized=True, label='Sagittarius dark matter\nDierickx & Loeb (2017)')
-        plt.quiver(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, cdm.pm_ra_cosdec.value, cdm.pm_dec.value, color=mpl.cm.magma(0.7), width=1, units='dots', headlength=1, scale_units='inches', scale=4, label='', alpha=1)
+        #plt.quiver(cdm.ra.wrap_at(wangle).radian, cdm.dec.radian, cdm.pm_ra_cosdec.value, cdm.pm_dec.value, color=mpl.cm.magma(0.7), width=1, units='dots', headlength=1, scale_units='inches', scale=4, label='', alpha=1)
     
     plt.legend(frameon=True, loc=4, handlelength=0.2, fontsize='small', markerscale=2)
     if step>0:
@@ -1034,3 +1122,194 @@ def skybox_quivers(label='v500w200', N=99856, step=1, colorby='dvr1', dvrcut=Fal
         cb.set_label(clabel)
     
     plt.savefig('../plots/skybox_pm.png')
+
+def reflex_uncorrect(coords, galactocentric_frame=None):
+    """Uncorrect the input Astropy coordinate object for solar reflex motion.
+
+    The input coordinate instance must have distance and radial velocity information. If the radial velocity is not known, fill the
+
+    Parameters
+    ----------
+    coords : `~astropy.coordinates.SkyCoord`
+        The Astropy coordinate object with position and velocity information.
+    galactocentric_frame : `~astropy.coordinates.Galactocentric` (optional)
+        To change properties of the Galactocentric frame, like the height of the
+        sun above the midplane, or the velocity of the sun in a Galactocentric
+        intertial frame, set arguments of the
+        `~astropy.coordinates.Galactocentric` object and pass in to this
+        function with your coordinates.
+
+    Returns
+    -------
+    coords : `~astropy.coordinates.SkyCoord`
+        The coordinates in the same frame as input, but with solar motion
+        put back in.
+
+    """
+    c = coord.SkyCoord(coords)
+
+    # If not specified, use the Astropy default Galactocentric frame
+    if galactocentric_frame is None:
+        galactocentric_frame = coord.Galactocentric()
+
+    v_sun = galactocentric_frame.galcen_v_sun
+
+    observed = c.transform_to(galactocentric_frame)
+    rep = observed.cartesian.without_differentials()
+    rep = rep.with_differentials(observed.cartesian.differentials['s'] - v_sun)
+    fr = galactocentric_frame.realize_frame(rep).transform_to(c.frame)
+    return coord.SkyCoord(fr)
+
+def velocity_vectors(label='v500w200', N=99856):
+    """"""
+    t = Table.read('../data/perturber_now_{:s}_r{:06d}.fits'.format(label, N))
+    
+    c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+    ceq = c.transform_to(gc_frame)
+    cgal = c.transform_to(coord.Galactic)
+    
+    w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    orbit = ham.integrate_orbit(w0, dt=1., n_steps=1)
+    epot = orbit.potential_energy()[0,:]
+    ekin = orbit.kinetic_energy()[0,:]
+    
+    ind = (np.abs(t['dvr1'])<1) & (np.abs(t['dvr2'])<1)
+    ind_bound = ekin<epot
+    r = np.linalg.norm(np.array([t['x'], t['y'], t['z']]), axis=0)
+    ind_close = (np.abs(t['x'])<50) & (np.abs(t['y'])<50) & (np.abs(t['z'])<50)
+    t = t[ind & ind_bound & ind_close]
+    #t = t[::10]
+
+    c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
+    ceq = c.transform_to(coord.ICRS)
+    #ceq = gc.reflex_correct(ceq)
+    cgal = ceq.transform_to(coord.Galactocentric)[::]
+    #print(c[0])
+    #print(cgal[0])
+    
+    # E-Lz
+    p_w0 = gd.PhaseSpacePosition(c.transform_to(gc_frame).cartesian)
+    p_orbit = ham.integrate_orbit(p_w0, dt=1., n_steps=1)
+    p_energy = p_orbit.energy()[0,:]
+    p_lz = p_orbit.angular_momentum()[2,0,:]
+    
+    ind_prograde = p_lz<0*u.kpc**2*u.Myr**-1
+    cgal = cgal[ind_prograde][::2]
+    
+    ## Sgr DM
+    tdm = Table.read('../data/DL17_DM.fits')
+    xsgr, ysgr, zsgr = 16.5, 6, -12
+    rsgr = np.sqrt((tdm['X_gal'] - xsgr)**2 + (tdm['Y_gal'] - ysgr)**2 + (tdm['Z_gal'] - zsgr)**2)
+    ind_unbound = rsgr > 4
+    ind_close = (np.abs(tdm['X_gal'])<50) & (np.abs(tdm['Y_gal'])<50) & (np.abs(tdm['Z_gal'])<50)
+    
+    tdm = tdm[ind_unbound & ind_close]
+    cdm_gal = coord.Galactocentric(x=tdm['X_gal']*u.kpc, y=tdm['Y_gal']*u.kpc, z=tdm['Z_gal']*u.kpc, v_x=tdm['Vx_gal']*u.km/u.s, v_y=tdm['Vy_gal']*u.km/u.s, v_z=tdm['Vz_gal']*u.km/u.s, **gc_frame_dict)
+    
+    cdm_eq = cdm_gal.transform_to(coord.ICRS)
+    cdm_eq = reflex_uncorrect(cdm_eq, galactocentric_frame=gc_frame)
+    cdm_gal = cdm_eq.transform_to(gc_frame)
+    
+    # E-Lz
+    sgr_w0 = gd.PhaseSpacePosition(cdm_gal.transform_to(gc_frame).cartesian)
+    sgr_orbit = ham.integrate_orbit(sgr_w0, dt=1., n_steps=1)
+    sgr_energy = sgr_orbit.energy()[0,:]
+    sgr_lz = sgr_orbit.angular_momentum()[2,0,:]
+    
+    cdm_gal = cdm_gal[::3]
+    
+    #print(sgr_energy.unit, sgr_lz.unit)
+    
+    xmax = 47
+    hmax = 50
+    bx = np.linspace(-hmax,hmax,30)
+    by = bx
+    hxy, bex, bey = np.histogram2d(cdm_gal.x.value, cdm_gal.y.value, bins=(bx, by))
+    hxy_smooth = gaussian_filter(hxy, 2)
+    
+    hxz, bex, bey = np.histogram2d(cdm_gal.x.value, cdm_gal.z.value, bins=(bx, by))
+    hxz_smooth = gaussian_filter(hxz, 2)
+    
+    hyz, bex, bey = np.histogram2d(cdm_gal.y.value, cdm_gal.z.value, bins=(bx, by))
+    hyz_smooth = gaussian_filter(hyz, 2)
+    
+    clist = ['#00106c', '#6af3ff']
+    cmap = mpl.colors.LinearSegmentedColormap.from_list('navyturquoise', clist)
+    #cmap = planck_cmap()
+    
+    plt.close()
+    fig, ax = plt.subplots(2,2, figsize=(10,10))
+    
+    plt.sca(ax[0][1])
+    plt.axis('off')
+    
+    plt.sca(ax[0][0])
+    #plt.plot(cdm_gal.x.value, cdm_gal.y.value, 'k.', alpha=0.4, zorder=1, ms=2)
+    #plt.hist2d(cdm_gal.x.value, cdm_gal.y.value, bins=np.linspace(-xmax, xmax, 50), cmap='RdBu_r', vmax=20)
+    plt.imshow(hxy_smooth.T, origin='lower', extent=[-hmax, hmax, -hmax, hmax], cmap=cmap, vmax=4, interpolation='gaussian')
+    plt.quiver(cdm_gal.x.value, cdm_gal.y.value, cdm_gal.v_x.value, cdm_gal.v_y.value, color='0.8', scale=1300, scale_units='inches', alpha=0.2, label='Sagittarius dark matter')
+    plt.quiver(cgal.x.value, cgal.y.value, cgal.v_x.value, cgal.v_y.value, color='orangered', scale=1300, scale_units='inches', width=0.003, minlength=2, headlength=3, headwidth=3, label='GD-1 perturber (prograde)')
+    
+    l = plt.legend(loc=3, fontsize='small', framealpha=0.1, handlelength=1)
+    plt.setp(l.get_texts(), color='0.9')
+
+    plt.xlim(-xmax, xmax)
+    plt.ylim(-xmax, xmax)
+    plt.gca().tick_params(labelbottom=False)
+    plt.gca().set_aspect('equal', adjustable='datalim')
+    plt.ylabel('y [kpc]')
+    
+    plt.sca(ax[1][0])
+    #plt.plot(cdm_gal.x.value, cdm_gal.z.value, 'k.', alpha=0.4, zorder=1, ms=2)
+    #plt.hist2d(cdm_gal.x.value, cdm_gal.z.value, bins=np.linspace(-xmax, xmax, 50), cmap='RdBu_r', vmax=20)
+    plt.imshow(hxz_smooth.T, origin='lower', extent=[-hmax, hmax, -hmax, hmax], cmap=cmap, vmax=4, interpolation='gaussian')
+    plt.quiver(cdm_gal.x.value, cdm_gal.z.value, cdm_gal.v_x.value, cdm_gal.v_z.value, color='0.8', scale=1300, scale_units='inches', alpha=0.2)
+    plt.quiver(cgal.x.value, cgal.z.value, cgal.v_x.value, cgal.v_z.value,  color='orangered', scale=1300, scale_units='inches', width=0.003, minlength=2, headlength=3, headwidth=3)
+    
+    plt.xlim(-xmax, xmax)
+    plt.ylim(-xmax, xmax)
+    plt.gca().set_aspect('equal', adjustable='datalim')
+    plt.xlabel('x [kpc]')
+    plt.ylabel('z [kpc]')
+    
+    plt.sca(ax[1][1])
+    #plt.plot(cdm_gal.y.value, cdm_gal.z.value, 'k.', alpha=0.4, zorder=1, ms=2)
+    plt.imshow(hyz_smooth.T, origin='lower', extent=[-hmax, hmax, -hmax, hmax], cmap=cmap, vmax=8, interpolation='gaussian')
+    plt.quiver(cdm_gal.y.value, cdm_gal.z.value, cdm_gal.v_y.value, cdm_gal.v_z.value, color='0.8', scale=1300, scale_units='inches', alpha=0.2)
+    plt.quiver(cgal.y.value, cgal.z.value, cgal.v_y.value, cgal.v_z.value,  color='orangered', scale=1300, scale_units='inches', width=0.003, minlength=2, headlength=3, headwidth=3)
+    
+    plt.xlim(-xmax, xmax)
+    plt.ylim(-xmax, xmax)
+    plt.gca().tick_params(labelleft=False)
+    plt.gca().set_aspect('equal', adjustable='datalim')
+    plt.xlabel('y [kpc]')
+    
+    plt.tight_layout(h_pad=0.3, w_pad=0.3)
+    
+    pos00 = ax[0][0].get_position()
+    pos11 = ax[1][1].get_position()
+    #print(pos00, pos11)
+    x0 = 0.635
+    y0 = 0.615
+    x1 = pos11.x1
+    y1 = pos00.y1
+    dx = x1 - x0
+    dy = y1 - y0
+    
+    plt.axes([x0, y0, dx, dy])
+    plt.plot(sgr_lz, sgr_energy, 'o', color='navy', ms=2.5, mew=0, alpha=0.5, label='Sagittarius dark matter')
+    plt.plot(p_lz, p_energy, 'o', color='orangered', ms=2.5, mew=0, alpha=0.5, label='GD-1 perturber')
+    
+    plt.axvline(0, ls='--', color='0.1', lw=2, alpha=0.5)
+    
+    plt.xlim(-9,9)
+    plt.ylim(0.14,0.31)
+    plt.gca().yaxis.set_major_locator(mpl.ticker.MultipleLocator(0.05))
+    plt.legend(loc=1, fontsize='small', handlelength=0.7, markerscale=2)
+    plt.xlabel('$L_z$ [kpc$^2$ Myr$^{-1}$]')
+    plt.ylabel('Energy [kpc$^2$ Myr$^{-2}$]')
+    plt.text(0.06,0.08, 'Prograde', fontsize='small', color='0.1', transform=plt.gca().transAxes)
+    plt.text(0.94,0.08, 'Retrograde', fontsize='small', color='0.1', transform=plt.gca().transAxes, ha='right')
+    
+    plt.savefig('../plots/phase_space_comparison.png')
+    plt.savefig('../paper/phase_space_comparison.pdf')

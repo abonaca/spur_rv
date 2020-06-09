@@ -3090,6 +3090,7 @@ def sgr_dm_kde(ndim=6):
     t = t[ind]
     c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
     ceq = c.transform_to(coord.ICRS)
+    ceq = gc.reflex_correct(ceq)
     
     obs = np.array([ceq.ra.degree, ceq.dec.degree, ceq.distance.value, ceq.radial_velocity.value, ceq.pm_ra_cosdec.to(u.mas/u.yr).value, ceq.pm_dec.to(u.mas/u.yr).value])
     
@@ -3108,10 +3109,36 @@ def sgr_dm_kde(ndim=6):
     #else:
         #vmin = 1.5e-10
         #vmax = 4e-10
+        
+    ind0 = prob==0
+    prob[ind0] = 1e-20
     
-    vmin, vmax = np.percentile(prob, [75, 99.9])
+    #plt.close()
+    #plt.figure()
+    
+    #plt.hist(np.log10(prob), bins=np.linspace(-20,-5,100))
+    
+    #pp = np.percentile(np.log10(prob), [84,95,99.5])
+    #for p in pp:
+        #plt.axvline(p, color='r')
+    
+    vmin, vmax = np.percentile(prob, [84, 99.9])
     #vmin = np.percentile(prob, 75)
     print(np.percentile(prob, [75, 90,95,99.9]))
+    
+    # plane
+    cplane = coord.Galactic(l=np.linspace(0,360,100)*u.deg, b=np.zeros(100)*u.deg)
+    cplane_eq = cplane.transform_to(coord.ICRS)
+    
+    # sgr globular clusters
+    tgc = Table.read('/home/ana/projects/gd1_spur/data/Vasiliev-globclust_space.txt', format='ascii', delimiter=' ', data_start=1)
+    sgr_gc = ['NGC6715(M54)', 'Terzan7', 'Terzan8', 'Arp2', 'Pal12', 'Whiting1', 'NGC2419', 'NGC5824']
+    sgr_gc = ['NGC6715(M54)']
+    ind_sgr = np.isin(tgc['Name'], sgr_gc)
+    tgc = tgc[ind_sgr]
+    cgc_eq = coord.SkyCoord(ra=tgc['RA']*u.deg, dec=tgc['DEC']*u.deg, distance=tgc['D']*u.kpc, radial_velocity=tgc['Vlos']*u.km/u.s, pm_ra_cosdec=tgc['PMRA']*u.mas/u.yr, pm_dec=tgc['PMDEC']*u.mas/u.yr, frame='icrs')
+    
+    #wangle = 360*u.deg
     
     plt.close()
     fig = plt.figure(figsize=(12,5.2))
@@ -3119,6 +3146,11 @@ def sgr_dm_kde(ndim=6):
     
     isort = np.argsort(prob)
     im = plt.scatter(ceq.ra.wrap_at(wangle).radian[isort], ceq.dec.radian[isort], rasterized=True, c=prob[isort], zorder=0, s=5, cmap='binary', norm=mpl.colors.LogNorm(), vmin=vmin, vmax=vmax)
+    
+    isort = np.argsort(cplane_eq.ra.wrap_at(wangle))
+    plt.plot(cplane_eq.ra.wrap_at(wangle).radian[isort], cplane_eq.dec.radian[isort], 'r:')
+
+    plt.plot(cgc_eq.ra.wrap_at(wangle).radian, cgc_eq.dec.radian, 'o', color='orange', ms=6)
     
     #plt.hist(prob, bins=30)
     
@@ -3136,6 +3168,7 @@ def perturber_vs_dm():
     t = t[ind]
     c = coord.Galactocentric(x=t['x']*u.kpc, y=t['y']*u.kpc, z=t['z']*u.kpc, v_x=t['vx']*u.km/u.s, v_y=t['vy']*u.km/u.s, v_z=t['vz']*u.km/u.s, **gc_frame_dict)
     ceq = c.transform_to(coord.ICRS)
+    ceq = gc.reflex_correct(ceq)
     
     tdm = Table.read('../data/DL17_DM.fits')
     cdm = coord.Galactocentric(x=tdm['X_gal']*u.kpc, y=tdm['Y_gal']*u.kpc, z=tdm['Z_gal']*u.kpc, v_x=tdm['Vx_gal']*u.km/u.s, v_y=tdm['Vy_gal']*u.km/u.s, v_z=tdm['Vz_gal']*u.km/u.s)
@@ -3159,28 +3192,30 @@ def perturber_vs_dm():
     glc = [cgc_eq.dec, cgc_eq.distance, cgc_eq.pm_ra_cosdec.to(u.mas/u.yr), cgc_eq.pm_dec.to(u.mas/u.yr), cgc_eq.radial_velocity]
     ylims = [[-90,90], [0,200], [-3, 3], [-3, 1], [-500, 500]]
     ylabels = ['Dec', 'd', '$\mu_\\alpha$', '$\mu_\delta$', '$V_r$']
+    wangle = 180*u.deg
     
     plt.close()
     fig, ax = plt.subplots(5,1, figsize=(10,12), sharex=True)
     
     for i in range(5):
         plt.sca(ax[i])
-        plt.plot(cdm_eq.ra, dm[i], 'k.', mew=0, alpha=0.5, label='Sgr DM (DL17)')
-        plt.plot(ceq.ra, obs[i], 'r.', ms=3, mew=0, alpha=0.5, label='GD-1 perturber')
-        plt.plot(cgc_eq.ra, glc[i], 'o', color='orange', ms=6, mew=1, mec='k', alpha=1, label='Globular clusters')
+        plt.plot(cdm_eq.ra.wrap_at(wangle), dm[i], 'k.', mew=0, alpha=0.5, label='Sgr DM (DL17)')
+        plt.plot(ceq.ra.wrap_at(wangle), obs[i], 'r.', ms=3, mew=0, alpha=0.5, label='GD-1 perturber')
+        plt.plot(cgc_eq.ra.wrap_at(wangle), glc[i], 'o', color='orange', ms=6, mew=1, mec='k', alpha=1, label='Globular clusters')
         
         plt.ylim(ylims[i])
         plt.ylabel(ylabels[i])
     
     i = 2
     plt.sca(ax[i])
-    plt.errorbar(cgc_eq.ra.value, glc[i].value, yerr=tgc['ePMRA'], fmt='none', color='orange', lw=2)
+    plt.errorbar(cgc_eq.ra.wrap_at(wangle).value, glc[i].value, yerr=tgc['ePMRA'], fmt='none', color='orange', lw=2)
 
     i = 3
     plt.sca(ax[i])
-    plt.errorbar(cgc_eq.ra.value, glc[i].value, yerr=tgc['ePMDEC'], fmt='none', color='orange', lw=2)
+    plt.errorbar(cgc_eq.ra.wrap_at(wangle).value, glc[i].value, yerr=tgc['ePMDEC'], fmt='none', color='orange', lw=2)
 
-    plt.xlim(0,360)
+    plt.sca(ax[4])
+    plt.xlim(-180,180)
     plt.xlabel('R.A.')
     plt.sca(ax[0])
     plt.legend(fontsize='x-small', markerscale=2, handlelength=1, ncol=3)
