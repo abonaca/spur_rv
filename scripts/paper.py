@@ -16,7 +16,8 @@ fuchsia = '#ff3643'
 def plot_membership():
     """Plot likely members and their selection in the CMD, radial velocity and chemical space"""
     
-    t = Table.read('../data/master_catalog.fits')
+    #t = Table.read('../data/master_catalog.fits')
+    t = Table.read('../data/catalog.fits')
     ind = (-t['lnL'] < 2.5E3+t['SNR']**2.4) & (t['SNR']>3) & np.isfinite(t['aFe'])
     t = t[ind]
     
@@ -32,6 +33,8 @@ def plot_membership():
     fehlims = mem_dict['fehlims']
     mem = mem_dict['mem']
     #mem = pmmem & vrmem
+    
+    print(np.sum(pmmem), np.sum(t['pmmem']))
     
     print(np.sum(pmmem & cmdmem), np.sum(pmmem & cmdmem & vrmem), np.sum(mem_dict['mem']))
     
@@ -515,6 +518,12 @@ def publish_catalog():
     
     t.pprint()
     t.write('../data/catalog.fits', overwrite=True)
+
+def catalog_docs():
+    """"""
+    t = Table.read('../data/catalog.fits')
+    print(t.colnames)
+    print(len(t))
 
 def occupation(nside=64):
     """"""
